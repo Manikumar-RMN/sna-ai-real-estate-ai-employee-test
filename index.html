@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SNA AI — Real Estate AI Employee</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f6f7fb;color:#172033}
+.app{display:flex;min-height:100vh}.side{width:240px;background:#111827;color:#fff;padding:24px 16px}.brand{font-size:20px;font-weight:800;padding:8px}.nav{margin-top:30px}.nav div{padding:12px;border-radius:10px;margin:4px 0;color:#cbd5e1}.nav .active{background:#273449;color:#fff}
+.main{flex:1;padding:28px;max-width:1500px;margin:auto;width:100%}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}.pill{padding:7px 11px;border-radius:20px;background:#dcfce7;color:#166534;font-size:12px;font-weight:700}
+.grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(320px,1fr);gap:20px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:20px;box-shadow:0 4px 20px rgba(0,0,0,.03)}
+.chat{height:670px;display:flex;flex-direction:column}.msgs{flex:1;overflow:auto;padding:8px}.msg{max-width:78%;padding:12px 14px;border-radius:14px;margin:8px 0;line-height:1.5;white-space:pre-wrap}.user{margin-left:auto;background:#e9e7ff}.ai{background:#f1f5f9}
+.composer{display:flex;gap:10px;margin-top:12px}.composer input{flex:1;padding:14px;border:1px solid #d1d5db;border-radius:10px}.send{background:#4f46e5;color:#fff;padding:0 18px;border-radius:10px;font-weight:700}.send:disabled{opacity:.6;cursor:not-allowed}
+.fields{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px}.fields input,.fields select{width:100%;padding:11px;border:1px solid #d1d5db;border-radius:9px}.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}.kpi{padding:14px;border:1px solid #e5e7eb;border-radius:12px}.kpi b{font-size:22px}.tag{display:inline-block;padding:5px 9px;border-radius:20px;background:#eef2ff;color:#4338ca;font-size:12px;margin:3px}.prop{padding:12px;border:1px solid #e5e7eb;border-radius:10px;margin-top:8px}.small{font-size:12px;color:#64748b}.danger{color:#b91c1c}.success{color:#15803d}.empty{padding:14px;border:1px dashed #cbd5e1;border-radius:10px;color:#64748b}
+@media(max-width:900px){.side{display:none}.grid{grid-template-columns:1fr}.main{padding:16px}.chat{height:650px}.fields{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side"><div class="brand">SNA AI</div><div class="nav"><div>Overview</div><div>Leads</div><div class="active">Test AI Employee</div><div>Properties</div><div>Appointments</div><div>Knowledge Base</div><div>Settings</div></div></aside>
+<main class="main">
+<div class="top"><div><h1 style="margin:0">Test AI Employee</h1><div class="small">Real-estate sales employee console</div></div><span class="pill" id="statusPill">Backend Connected</span></div>
+<div class="kpis"><div class="kpi"><div class="small">Employee</div><b id="employeeKpi">Alex</b></div><div class="kpi"><div class="small">Channel</div><b id="channelKpi">Test</b></div><div class="kpi"><div class="small">AI mode</div><b id="modeKpi">Rules</b></div></div>
+<div class="grid">
+<section class="card chat">
+<div class="fields"><input id="name" placeholder="Customer name" value="Test Customer"><input id="phone" placeholder="Phone" value="9876543210"><select id="channel"><option value="test">Test</option><option value="website">Website</option><option value="whatsapp">WhatsApp</option><option value="phone">Phone</option></select></div>
+<div id="msgs" class="msgs"><div class="msg ai">Hi! I’m Alex, your AI sales employee. Tell me what property you’re looking for — location, bedrooms and budget are enough to get started.</div></div>
+<div class="composer"><input id="input" placeholder="e.g. I need a 2BHK in OMR under 70 lakhs"><button id="send" class="send">Send</button></div>
+</section>
+<aside class="card">
+<h3 style="margin-top:0">Lead Intelligence</h3><div id="lead"><div class="empty">Send a message to analyse the lead.</div></div>
+<h3>Matched Properties</h3><div id="props"><div class="empty">No matches yet.</div></div>
+<h3>Next Action</h3><div id="action" class="small">—</div>
+<h3>Safety</h3><div class="small">The employee uses approved property and knowledge data only. Negotiation, legal and sensitive issues are escalated to a human.</div>
+</aside>
+</div>
+</main>
+</div>
+<script>
+const SUPABASE_URL="https://lrtoktmfspnypkgrvnzg.supabase.co";
+const SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxydG9rdG1mc3BueXBrZ3J2bnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxNDU3OTQsImV4cCI6MjEwNTcyMTc5NH0.j_3pxaRpg6O9-HugDMfHnxdIBCOoGIadEsiqG3dHEgE";
+const BUSINESS_ID="f58bb672-52f4-48de-8785-953a47632b1c";
+const ENDPOINT=SUPABASE_URL+"/functions/v1/sales-agent";
+let leadId=null;
+
+const $=id=>document.getElementById(id);
+function addMessage(text,klass){const el=document.createElement("div");el.className="msg "+klass;el.textContent=text;$("msgs").appendChild(el);$("msgs").scrollTop=$("msgs").scrollHeight}
+function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",""":"&quot;","'":"&#39;"}[c]))}
+
+async function send(){
+ const message=$("input").value.trim(); if(!message)return;
+ addMessage(message,"user"); $("input").value="";
+ $("send").disabled=true; $("send").textContent="Thinking…"; $("statusPill").textContent="Contacting employee…";
+ try{
+   const response=await fetch(ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+SUPABASE_ANON_KEY,"apikey":SUPABASE_ANON_KEY},body:JSON.stringify({business_id:BUSINESS_ID,message,lead_id:leadId||undefined,channel:$("channel").value,name:$("name").value.trim(),phone:$("phone").value.trim()})});
+   const data=await response.json();
+   if(!response.ok) throw new Error(data.error||"Request failed");
+   leadId=data.lead_id||leadId;
+   addMessage(data.reply||"No response returned.","ai");
+   $("employeeKpi").textContent=data.employee?.name||"Alex";
+   $("channelKpi").textContent=$("channel").value;
+   $("modeKpi").textContent=data.ai_generated?"LLM":"Rules";
+   $("statusPill").textContent="Backend Connected";
+   const lead=data.lead||{};
+   const extracted=data.extracted||{};
+   $("lead").innerHTML='<div class="kpi"><div class="small">Score</div><b>'+esc(lead.score??"-")+'</b></div><div><span class="tag">'+esc(lead.status||"-")+'</span><span class="tag">'+esc(lead.next_action||"-")+'</span></div><div class="small" style="margin-top:10px">Extracted requirements</div><div>'+Object.entries(extracted).filter(([k,v])=>v!==null&&v!==undefined&&v!=="").map(([k,v])=>'<span class="tag">'+esc(k)+': '+esc(v)+'</span>').join("")+'</div>'+(data.handoff?'<p class="danger"><b>Human handoff recommended</b></p>':"");
+   const matches=data.matches||[];
+   $("props").innerHTML=matches.length?matches.map(p=>'<div class="prop"><b>'+esc(p.name)+'</b><div class="small">'+esc(p.location)+' · '+esc(p.bedrooms)+' · ₹'+esc(p.price_min_lakh)+'–₹'+esc(p.price_max_lakh)+'L · '+esc(p.status)+'</div></div>').join(""):'<div class="empty">No matching approved properties.</div>';
+   $("action").textContent=lead.next_action||"—";
+ }catch(err){
+   $("statusPill").textContent="Connection Error";
+   addMessage("Error: "+err.message,"ai");
+ }finally{ $("send").disabled=false; $("send").textContent="Send"; }
+}
+$("send").addEventListener("click",send);
+$("input").addEventListener("keydown",e=>{if(e.key==="Enter")send()});
+$("channel").addEventListener("change",()=>{$("channelKpi").textContent=$("channel").value});
+</script>
+</body>
+</html>
