@@ -20,4 +20,4 @@ Business-specific AI employees will be built later on top of this engine.
 
 ## Current status
 
-V0.1 cleanup is complete. Implementation starts from a clean repository.
+V0.2 safety hardening is the next engine milestone: schema validation, permissions, and sensitive-action confirmation.
