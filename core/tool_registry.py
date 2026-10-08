@@ -3,6 +3,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 PERMISSIONS = ("read", "write", "sensitive")
 
+
 @dataclass(frozen=True)
 class Tool:
     name: str
@@ -10,7 +11,9 @@ class Tool:
     handler: Callable[..., Any]
     schema: Dict[str, Any]
     permission: str = "read"
-    permission: str = "read"
+    category: str = "general"
+    retryable: bool = False
+
 
 class ToolRegistry:
     def __init__(self) -> None:
@@ -23,10 +26,8 @@ class ToolRegistry:
             raise ValueError(f"Invalid tool permission: {tool.permission}")
         if not isinstance(tool.schema, dict):
             raise ValueError("Tool schema must be a dictionary")
-        if tool.permission not in ("read", "write", "sensitive"):
-            raise ValueError(f"Invalid tool permission: {tool.permission}")
-        if not isinstance(tool.schema, dict):
-            raise ValueError("Tool schema must be a dictionary")
+        if not tool.category.strip():
+            raise ValueError("Tool category cannot be empty")
         if tool.name in self._tools:
             raise ValueError(f"Tool already registered: {tool.name}")
         self._tools[tool.name] = tool
@@ -41,9 +42,13 @@ class ToolRegistry:
                 "description": t.description,
                 "input_schema": t.schema,
                 "permission": t.permission,
+                "category": t.category,
             }
             for t in self._tools.values()
         ]
 
     def handlers(self) -> Dict[str, Callable[..., Any]]:
         return {name: tool.handler for name, tool in self._tools.items()}
+
+    def list_tools(self) -> List[Tool]:
+        return list(self._tools.values())
