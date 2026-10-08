@@ -17,12 +17,18 @@ class AgentConfig:
     tool_timeout_seconds: float = 30.0
     allowed_permissions: Set[str] = field(default_factory=lambda: {"read"})
     confirm_sensitive: bool = False
+    max_tool_calls: int = 32
+    max_consecutive_tool_errors: int = 3
 
     def __post_init__(self) -> None:
         if self.max_steps < 1:
             raise ValueError("max_steps must be >= 1")
         if self.tool_timeout_seconds <= 0:
             raise ValueError("tool_timeout_seconds must be > 0")
+        if self.max_tool_calls < 1:
+            raise ValueError("max_tool_calls must be >= 1")
+        if self.max_consecutive_tool_errors < 1:
+            raise ValueError("max_consecutive_tool_errors must be >= 1")
         valid = {"read", "write", "sensitive"}
         invalid = set(self.allowed_permissions) - valid
         if invalid:
