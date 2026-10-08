@@ -128,7 +128,7 @@ class Agent:
                 result = (
                     {"error": f"Unknown tool: {call.name}"}
                     if tool is None
-                    else self.executor.execute(tool, call.arguments)
+                    else self.executor.execute(tool, call.arguments, self.config.tool_max_retries)
                 )
 
                 if isinstance(result, dict) and "error" in result:
