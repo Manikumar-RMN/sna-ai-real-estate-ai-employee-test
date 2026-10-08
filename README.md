@@ -68,6 +68,30 @@ V0.7 adds runtime safety limits and lifecycle controls:
 
 These policies are engine-level controls and remain independent of any business vertical or external integration.
 
-## Next
+## V0.8 — Tool & Persistence Hardening
+
+The reusable engine core is now complete for its pre-integration stage:
+
+- Capability metadata on tools (category, retryable)
+- Hardened tool registry with duplicate and schema checks
+- Configurable retry policy for retryable tools
+- Durable local JsonFileRunStore
+- Stable public package API through core/__init__.py
+- Python package metadata in pyproject.toml
+- Automated CI tests across Python 3.10, 3.11, and 3.12
+- No external database or provider is required to run the core engine
+
+## Production integration boundary
+
+The engine is ready for the next layer of work, which is intentionally outside the core:
+
+1. Connect a real model provider.
+2. Add a durable production database adapter such as Postgres/Supabase.
+3. Build vertical-specific tools and knowledge.
+4. Add channel adapters such as WhatsApp, web chat, email, or voice.
+5. Add authentication, tenant isolation, secrets management, and deployment infrastructure.
+6. Add business-specific observability, billing, and admin UI.
+
+Those integrations should be built on top of the engine rather than inside it.
 
 The next milestone can add a durable storage adapter (for example Postgres/Supabase) only when persistence requirements are defined. No existing SNA AI database is required by the engine.
