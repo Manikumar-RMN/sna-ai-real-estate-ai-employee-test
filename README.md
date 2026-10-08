@@ -43,6 +43,18 @@ V0.4 introduced the model and memory boundaries needed to keep the engine provid
 
 Business-specific AI employees will be built later on top of this engine.
 
+## V0.6 — Agent Configuration & Runtime Context
+
+V0.6 separates agent behavior from execution data:
+
+- `AgentConfig` controls system prompt, step limit, tool timeout, permissions, and sensitive-action confirmation
+- `RuntimeContext` carries request-scoped business, user, channel, session, and metadata context
+- Runtime context is kept separate from conversation messages at the API boundary
+- Agents remain vertical-neutral and provider-neutral
+- Existing run persistence and resumability continue to work unchanged
+
+Business-specific employees can later supply their own configuration and runtime context without changing the engine core.
+
 ## Next
 
 The next milestone can add a durable storage adapter (for example Postgres/Supabase) only when persistence requirements are defined. No existing SNA AI database is required by the engine.
