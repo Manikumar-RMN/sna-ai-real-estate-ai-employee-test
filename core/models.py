@@ -15,3 +15,12 @@ class ModelResponse:
 class ChatModel(Protocol):
     def chat(self, messages: List[Dict[str, Any]], tools: List[Dict[str, Any]]) -> ModelResponse:
         ...
+
+
+@dataclass
+class AgentResult:
+    run_id: str
+    status: str
+    output: str
+    steps: int
+    events: List[Dict[str, Any]]
