@@ -1,22 +1,23 @@
 # SNA AI Agent Engine
 
-Reusable core runtime for SNA AI's tool-using agents.
+Core runtime for SNA AI's reusable, tool-using AI agents.
 
-## V0.1
+## Purpose
 
-This first version provides:
+This repository is now dedicated to the **SNA AI Agent Engine**. It is intentionally independent of any business vertical, UI, database, CRM, WhatsApp integration, or model provider.
 
-- Agent loop with configurable step limit.
-- Tool registry with schemas and handlers.
-- Tool execution with JSON parsing, unknown-tool handling, exception capture, and timeouts.
-- In-memory run logging.
-- Provider-neutral model interface.
-- Deterministic tests with a fake model; no API key required.
+## Planned architecture
 
-## Example
+- Agent runtime
+- Tool registry and schemas
+- Safe tool execution
+- Agent state and memory
+- Permissions and guardrails
+- Run logging / observability
+- Model-provider adapters
 
-See examples/basic_agent.py.
+Business-specific AI employees will be built later on top of this engine.
 
-## Direction
+## Current status
 
-This core stays independent of any business vertical. Real estate, construction, customer support, operations, and other AI employees should become integrations on top of this engine.
+V0.1 cleanup is complete. Implementation starts from a clean repository.
