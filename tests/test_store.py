@@ -102,3 +102,39 @@ def test_supabase_store_round_trip_mapping():
     assert loaded.output == "done"
     assert loaded.messages[0]["content"] == "hello"
     assert loaded.events[0].type == "run_started"
+
+
+from core.conversation_store import SupabaseConversationStore
+
+
+class FakeConversationStore(SupabaseConversationStore):
+    def __init__(self):
+        super().__init__("https://example.supabase.co", "test-key")
+        self.calls = []
+
+    def _request(self, method, path, payload=None, *, extra_headers=None):
+        self.calls.append((method, path, payload, extra_headers))
+        if method == "GET" and "/messages?" in path:
+            return [
+                {"role": "user", "content": "Hello"},
+                {"role": "assistant", "content": "Hi there"},
+            ]
+        if method == "GET":
+            return [{"id": "conversation-1", "status": "active"}]
+        return [{"id": "new-record"}]
+
+
+def test_conversation_store_creates_and_loads_memory():
+    store = FakeConversationStore()
+    conversation = store.create_conversation(
+        business_id="business-1",
+        agent_id="agent-1",
+        channel="web",
+    )
+    assert conversation["id"] == "new-record"
+
+    memory = store.load_memory("conversation-1")
+    assert memory == [
+        {"role": "user", "content": "Hello"},
+        {"role": "assistant", "content": "Hi there"},
+    ]
