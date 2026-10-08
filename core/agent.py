@@ -55,6 +55,19 @@ class Agent:
     def resume(self, run_id: str) -> str:
         return self.resume_result(run_id).output
 
+    def cancel(self, run_id: str) -> AgentResult:
+        state = self.run_store.get(run_id)
+        if state is None:
+            raise ValueError(f"run not found: {run_id}")
+        if state.status == "completed":
+            raise ValueError(f"run already completed: {run_id}")
+        if state.status == "cancelled":
+            return self._result(state)
+        state.status = "cancelled"
+        state.record("run_cancelled", state.step)
+        self.run_store.save(state)
+        return self._result(state)
+
     def resume_result(self, run_id: str) -> AgentResult:
         state = self.run_store.get(run_id)
         if state is None:
@@ -63,6 +76,8 @@ class Agent:
             raise ValueError(f"run already completed: {run_id}")
         if state.status == "running":
             raise ValueError(f"run is already active: {run_id}")
+        if state.status == "cancelled":
+            raise ValueError(f"run is cancelled: {run_id}")
 
         state.status = "running"
         state.record("run_resumed", state.step)
