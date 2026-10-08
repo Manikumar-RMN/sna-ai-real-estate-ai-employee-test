@@ -3,6 +3,8 @@ from typing import Optional
 
 from .config import AgentConfig, RuntimeContext, build_system_prompt
 from .executor import ToolExecutor
+from .knowledge import KnowledgeProvider
+from .knowledge_runtime import NullKnowledgeProvider
 from .models import AgentResult, ChatModel
 from .state import AgentState
 from .store import InMemoryRunStore, RunStore
@@ -16,16 +18,34 @@ class Agent:
         registry: ToolRegistry,
         config: Optional[AgentConfig] = None,
         run_store: Optional[RunStore] = None,
+        knowledge: Optional[KnowledgeProvider] = None,
     ) -> None:
         self.model = model
         self.registry = registry
         self.config = config or AgentConfig()
         self.run_store = run_store or InMemoryRunStore()
+        self.knowledge = knowledge or NullKnowledgeProvider()
         self.executor = ToolExecutor(
             self.config.tool_timeout_seconds,
             allowed_permissions=self.config.allowed_permissions,
             confirm_sensitive=self.config.confirm_sensitive,
         )
+def search_knowledge(
+    self,
+    query: str,
+    *,
+    limit: int = 5,
+    filters: Optional[dict] = None,
+) -> list:
+    """Retrieve knowledge through the configured provider."""
+    if not query.strip():
+        raise ValueError("knowledge query cannot be empty")
+
+    return self.knowledge.search(
+        query,
+        limit=limit,
+        filters=filters,
+    )
 
     def run(self, task: str, context: Optional[RuntimeContext] = None) -> str:
         return self.run_result(task, context).output
