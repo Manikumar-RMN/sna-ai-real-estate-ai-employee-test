@@ -7,6 +7,7 @@ from .models import AgentResult, ModelResponse, ToolCall
 from .providers import FunctionModelProvider, ModelProvider
 from .store import InMemoryRunStore, JsonFileRunStore, RunStore
 from .supabase_store import SupabaseRunStore
+from .conversation_store import SupabaseConversationStore
 from .tool_registry import Tool, ToolRegistry
 
 __all__ = [
@@ -23,6 +24,7 @@ __all__ = [
     "InMemoryRunStore",
     "JsonFileRunStore",
     "SupabaseRunStore",
+    "SupabaseConversationStore",
     "Tool",
     "ToolRegistry",
 ]
