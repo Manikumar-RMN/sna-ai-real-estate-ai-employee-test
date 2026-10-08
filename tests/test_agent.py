@@ -204,3 +204,36 @@ def test_consecutive_tool_error_policy_stops_run():
         AgentConfig(max_steps=8, max_consecutive_tool_errors=2),
     ).run_result("errors")
     assert result.status == "policy_limit"
+
+
+
+def test_agent_uses_pluggable_knowledge_provider():
+    from core.knowledge import KnowledgeItem
+    from core.knowledge_memory import InMemoryKnowledgeProvider
+
+    knowledge = InMemoryKnowledgeProvider([
+        KnowledgeItem(id="k1", title="Pricing", content="Basic plan costs 9999"),
+    ])
+    agent = Agent(FakeModel([]), registry(), knowledge=knowledge)
+
+    results = agent.search_knowledge("pricing", limit=1)
+
+    assert results[0].id == "k1"
+    assert results[0].title == "Pricing"
+
+
+def test_agent_works_without_knowledge_provider():
+    agent = Agent(FakeModel([]), registry())
+
+    assert agent.search_knowledge("anything") == []
+
+
+def test_agent_rejects_empty_knowledge_query():
+    agent = Agent(FakeModel([]), registry())
+
+    try:
+        agent.search_knowledge("   ")
+    except ValueError as e:
+        assert "empty" in str(e)
+    else:
+        assert False
