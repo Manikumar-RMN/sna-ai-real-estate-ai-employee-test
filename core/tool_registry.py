@@ -10,6 +10,7 @@ class Tool:
     handler: Callable[..., Any]
     schema: Dict[str, Any]
     permission: str = "read"
+    permission: str = "read"
 
 class ToolRegistry:
     def __init__(self) -> None:
@@ -19,6 +20,10 @@ class ToolRegistry:
         if not tool.name.strip():
             raise ValueError("Tool name cannot be empty")
         if tool.permission not in PERMISSIONS:
+            raise ValueError(f"Invalid tool permission: {tool.permission}")
+        if not isinstance(tool.schema, dict):
+            raise ValueError("Tool schema must be a dictionary")
+        if tool.permission not in ("read", "write", "sensitive"):
             raise ValueError(f"Invalid tool permission: {tool.permission}")
         if not isinstance(tool.schema, dict):
             raise ValueError("Tool schema must be a dictionary")
