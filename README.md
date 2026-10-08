@@ -55,6 +55,19 @@ V0.6 separates agent behavior from execution data:
 
 Business-specific employees can later supply their own configuration and runtime context without changing the engine core.
 
+## V0.7 — Agent Lifecycle & Execution Policies
+
+V0.7 adds runtime safety limits and lifecycle controls:
+
+- Configurable maximum total tool calls per run
+- Configurable maximum consecutive tool errors
+- Explicit `policy_limit` run status when a safety limit stops execution
+- Explicit run cancellation for saved runs
+- Cancelled runs cannot be resumed accidentally
+- Existing step limits remain the primary execution boundary
+
+These policies are engine-level controls and remain independent of any business vertical or external integration.
+
 ## Next
 
 The next milestone can add a durable storage adapter (for example Postgres/Supabase) only when persistence requirements are defined. No existing SNA AI database is required by the engine.
