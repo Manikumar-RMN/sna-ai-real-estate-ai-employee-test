@@ -70,6 +70,9 @@ class Agent:
         return self._execute(state)
 
     def _execute(self, state: AgentState) -> AgentResult:
+        tool_calls_count = 0
+        consecutive_tool_errors = 0
+
         for _ in range(self.config.max_steps):
             state.step += 1
             state.record("model_step_started", state.step)
@@ -99,11 +102,24 @@ class Agent:
                 tool = self.registry.get(call.name)
                 state.record("tool_call_started", state.step, tool=call.name)
 
+                tool_calls_count += 1
+                if tool_calls_count > self.config.max_tool_calls:
+                    state.status = "policy_limit"
+                    state.output = "Stopped: tool-call policy limit reached."
+                    state.record("run_stopped", state.step, reason="max_tool_calls")
+                    self.run_store.save(state)
+                    return self._result(state)
+
                 result = (
                     {"error": f"Unknown tool: {call.name}"}
                     if tool is None
                     else self.executor.execute(tool, call.arguments)
                 )
+
+                if isinstance(result, dict) and "error" in result:
+                    consecutive_tool_errors += 1
+                else:
+                    consecutive_tool_errors = 0
 
                 state.log.append({
                     "step": state.step,
@@ -123,6 +139,13 @@ class Agent:
                     "content": json.dumps(result, default=str),
                 })
                 self.run_store.save(state)
+
+                if consecutive_tool_errors >= self.config.max_consecutive_tool_errors:
+                    state.status = "policy_limit"
+                    state.output = "Stopped: consecutive tool-error policy limit reached."
+                    state.record("run_stopped", state.step, reason="max_consecutive_tool_errors")
+                    self.run_store.save(state)
+                    return self._result(state)
 
         state.status = "step_limit"
         state.output = "Stopped: step limit reached. Partial progress is available in the run log."
