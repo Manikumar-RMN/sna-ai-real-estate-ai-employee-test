@@ -1,8 +1,10 @@
 import json
 from typing import Iterable, Optional
+
 from .executor import ToolExecutor
 from .models import AgentResult, ChatModel
 from .state import AgentState
+from .store import InMemoryRunStore, RunStore
 from .tool_registry import ToolRegistry
 
 SYSTEM_PROMPT = """You are an agent running inside the SNA AI Agent Engine.
@@ -21,12 +23,14 @@ class Agent:
         tool_timeout_seconds: float = 30.0,
         allowed_permissions: Optional[Iterable[str]] = None,
         confirm_sensitive: bool = False,
+        run_store: Optional[RunStore] = None,
     ) -> None:
         if max_steps < 1:
             raise ValueError("max_steps must be >= 1")
         self.model = model
         self.registry = registry
         self.max_steps = max_steps
+        self.run_store = run_store or InMemoryRunStore()
         self.executor = ToolExecutor(
             tool_timeout_seconds,
             allowed_permissions=allowed_permissions,
@@ -48,29 +52,41 @@ class Agent:
             ],
         )
         state.record("run_started", 0, task=task)
+        self.run_store.save(state)
+        return self._execute(state)
 
-        for step in range(self.max_steps):
-            state.step = step + 1
+    def resume(self, run_id: str) -> str:
+        return self.resume_result(run_id).output
+
+    def resume_result(self, run_id: str) -> AgentResult:
+        state = self.run_store.get(run_id)
+        if state is None:
+            raise ValueError(f"run not found: {run_id}")
+        if state.status == "completed":
+            raise ValueError(f"run already completed: {run_id}")
+        if state.status == "running":
+            raise ValueError(f"run is already active: {run_id}")
+
+        state.status = "running"
+        state.record("run_resumed", state.step)
+        self.run_store.save(state)
+        return self._execute(state)
+
+    def _execute(self, state: AgentState) -> AgentResult:
+        for _ in range(self.max_steps):
+            state.step += 1
             state.record("model_step_started", state.step)
+            self.run_store.save(state)
 
             response = self.model.chat(state.messages, self.registry.schemas())
             calls = response.tool_calls or []
 
             if not calls:
-                output = response.content or ""
-                state.record("run_completed", state.step, output=output)
-                return AgentResult(
-                    run_id=state.run_id,
-                    status="completed",
-                    output=output,
-                    steps=state.step,
-                    events=[{
-                        "type": e.type,
-                        "timestamp": e.timestamp,
-                        "step": e.step,
-                        "data": e.data,
-                    } for e in state.events],
-                )
+                state.output = response.content or ""
+                state.status = "completed"
+                state.record("run_completed", state.step, output=state.output)
+                self.run_store.save(state)
+                return self._result(state)
 
             state.messages.append({
                 "role": "assistant",
@@ -80,6 +96,7 @@ class Agent:
                     for c in calls
                 ],
             })
+            self.run_store.save(state)
 
             for call in calls:
                 tool = self.registry.get(call.name)
@@ -108,13 +125,20 @@ class Agent:
                     "tool_call_id": call.id,
                     "content": json.dumps(result, default=str),
                 })
+                self.run_store.save(state)
 
-        output = "Stopped: step limit reached. Partial progress is available in the run log."
+        state.status = "step_limit"
+        state.output = "Stopped: step limit reached. Partial progress is available in the run log."
         state.record("run_stopped", state.step, reason="step_limit")
+        self.run_store.save(state)
+        return self._result(state)
+
+    @staticmethod
+    def _result(state: AgentState) -> AgentResult:
         return AgentResult(
             run_id=state.run_id,
-            status="step_limit",
-            output=output,
+            status=state.status,
+            output=state.output,
             steps=state.step,
             events=[{
                 "type": e.type,
