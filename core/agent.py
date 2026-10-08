@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict
+from typing import Iterable, Optional
 from .executor import ToolExecutor
 from .models import ChatModel
 from .state import AgentState
@@ -12,13 +12,13 @@ If a tool fails, inspect the error and decide whether to retry, use another tool
 Finish with a clear answer when the task is complete."""
 
 class Agent:
-    def __init__(self, model: ChatModel, registry: ToolRegistry, max_steps: int = 8, tool_timeout_seconds: float = 30.0) -> None:
+    def __init__(self, model: ChatModel, registry: ToolRegistry, max_steps: int = 8, tool_timeout_seconds: float = 30.0, allowed_permissions: Optional[Iterable[str]] = None, confirm_sensitive: bool = False) -> None:
         if max_steps < 1:
             raise ValueError("max_steps must be >= 1")
         self.model = model
         self.registry = registry
         self.max_steps = max_steps
-        self.executor = ToolExecutor(tool_timeout_seconds)
+        self.executor = ToolExecutor(tool_timeout_seconds, allowed_permissions=allowed_permissions, confirm_sensitive=confirm_sensitive)
 
     def run(self, task: str) -> str:
         if not task.strip():
@@ -32,7 +32,8 @@ class Agent:
                 return response.content or ""
             state.messages.append({"role":"assistant","content":response.content,"tool_calls":[{"id":c.id,"name":c.name,"arguments":c.arguments} for c in calls]})
             for call in calls:
-                result = self.executor.execute(call.name, call.arguments, self.registry.handlers())
+                tool = self.registry.get(call.name)
+                result = {"error": f"Unknown tool: {call.name}"} if tool is None else self.executor.execute(tool, call.arguments)
                 state.log.append({"step":state.step,"tool":call.name,"arguments":call.arguments,"result":result})
                 state.messages.append({"role":"tool","tool_call_id":call.id,"content":json.dumps(result,default=str)})
         return "Stopped: step limit reached. Partial progress is available in the run log."
