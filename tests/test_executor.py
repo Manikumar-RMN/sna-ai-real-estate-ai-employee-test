@@ -80,4 +80,4 @@ def test_retryable_tool_retries_after_failure():
         max_retries=1,
     )
     assert result == "ok"
-    assert attempts["count"] == 1
+    assert attempts["count"] == 2
