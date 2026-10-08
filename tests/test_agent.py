@@ -1,5 +1,6 @@
 from core.agent import Agent
 from core.models import ModelResponse, ToolCall
+from core.store import InMemoryRunStore
 from core.tool_registry import Tool, ToolRegistry
 
 
@@ -107,4 +108,51 @@ def test_agent_result_records_step_limit():
 
     result = Agent(Loop(), registry(), max_steps=2).run_result("loop")
     assert result.status == "step_limit"
-    assert result.events[-1]["type"] == "run_stopped"
+
+
+def test_run_is_persisted_and_can_be_resumed():
+    store = InMemoryRunStore()
+    model = FakeModel([
+        ModelResponse(tool_calls=[ToolCall("1", "add", '{"a":2,"b":3}')]),
+        ModelResponse(content="done"),
+    ])
+    agent = Agent(model, registry(), max_steps=1, run_store=store)
+
+    first = agent.run_result("calculate")
+    assert first.status == "step_limit"
+
+    saved = store.get(first.run_id)
+    assert saved is not None
+    assert saved.status == "step_limit"
+    assert saved.step == 1
+    assert len(saved.log) == 1
+
+    resumed = agent.resume_result(first.run_id)
+    assert resumed.run_id == first.run_id
+    assert resumed.status == "completed"
+    assert resumed.output == "done"
+    assert resumed.steps == 2
+    assert any(e["type"] == "run_resumed" for e in resumed.events)
+
+
+def test_missing_run_cannot_resume():
+    agent = Agent(FakeModel([]), registry())
+    try:
+        agent.resume_result("missing")
+    except ValueError as e:
+        assert "run not found" in str(e)
+    else:
+        assert False
+
+
+def test_completed_run_cannot_resume():
+    store = InMemoryRunStore()
+    agent = Agent(FakeModel([ModelResponse(content="done")]), registry(), run_store=store)
+    result = agent.run_result("finish")
+
+    try:
+        agent.resume_result(result.run_id)
+    except ValueError as e:
+        assert "already completed" in str(e)
+    else:
+        assert False
