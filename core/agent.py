@@ -1,17 +1,12 @@
 import json
-from typing import Iterable, Optional
+from typing import Optional
 
+from .config import AgentConfig, RuntimeContext, build_system_prompt
 from .executor import ToolExecutor
 from .models import AgentResult, ChatModel
 from .state import AgentState
 from .store import InMemoryRunStore, RunStore
 from .tool_registry import ToolRegistry
-
-SYSTEM_PROMPT = """You are an agent running inside the SNA AI Agent Engine.
-Use tools when they are needed to complete the task.
-Never invent tool results.
-If a tool fails, inspect the error and decide whether to retry, use another tool, or explain the limitation.
-Finish with a clear answer when the task is complete."""
 
 
 class Agent:
@@ -19,35 +14,37 @@ class Agent:
         self,
         model: ChatModel,
         registry: ToolRegistry,
-        max_steps: int = 8,
-        tool_timeout_seconds: float = 30.0,
-        allowed_permissions: Optional[Iterable[str]] = None,
-        confirm_sensitive: bool = False,
+        config: Optional[AgentConfig] = None,
         run_store: Optional[RunStore] = None,
     ) -> None:
-        if max_steps < 1:
-            raise ValueError("max_steps must be >= 1")
         self.model = model
         self.registry = registry
-        self.max_steps = max_steps
+        self.config = config or AgentConfig()
         self.run_store = run_store or InMemoryRunStore()
         self.executor = ToolExecutor(
-            tool_timeout_seconds,
-            allowed_permissions=allowed_permissions,
-            confirm_sensitive=confirm_sensitive,
+            self.config.tool_timeout_seconds,
+            allowed_permissions=self.config.allowed_permissions,
+            confirm_sensitive=self.config.confirm_sensitive,
         )
 
-    def run(self, task: str) -> str:
-        return self.run_result(task).output
+    def run(self, task: str, context: Optional[RuntimeContext] = None) -> str:
+        return self.run_result(task, context).output
 
-    def run_result(self, task: str) -> AgentResult:
+    def run_result(
+        self,
+        task: str,
+        context: Optional[RuntimeContext] = None,
+    ) -> AgentResult:
         if not task.strip():
             raise ValueError("task cannot be empty")
 
         state = AgentState(
             task=task,
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {
+                    "role": "system",
+                    "content": build_system_prompt(self.config.system_prompt, context),
+                },
                 {"role": "user", "content": task},
             ],
         )
@@ -73,7 +70,7 @@ class Agent:
         return self._execute(state)
 
     def _execute(self, state: AgentState) -> AgentResult:
-        for _ in range(self.max_steps):
+        for _ in range(self.config.max_steps):
             state.step += 1
             state.record("model_step_started", state.step)
             self.run_store.save(state)
