@@ -33,6 +33,7 @@ __all__ = [
     "CompositeKnowledgeProvider",
     "InMemoryKnowledgeProvider",
     "SupabaseKnowledgeProvider",
+    "OpenAICompatibleProvider",
     "Tool",
     "ToolRegistry",
 ]
