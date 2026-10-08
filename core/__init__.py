@@ -8,6 +8,9 @@ from .providers import FunctionModelProvider, ModelProvider
 from .store import InMemoryRunStore, JsonFileRunStore, RunStore
 from .supabase_store import SupabaseRunStore
 from .conversation_store import SupabaseConversationStore
+from .knowledge import CompositeKnowledgeProvider, KnowledgeItem, KnowledgeProvider
+from .knowledge_memory import InMemoryKnowledgeProvider
+from .supabase_knowledge import SupabaseKnowledgeProvider
 from .tool_registry import Tool, ToolRegistry
 
 __all__ = [
@@ -25,6 +28,11 @@ __all__ = [
     "JsonFileRunStore",
     "SupabaseRunStore",
     "SupabaseConversationStore",
+    "KnowledgeItem",
+    "KnowledgeProvider",
+    "CompositeKnowledgeProvider",
+    "InMemoryKnowledgeProvider",
+    "SupabaseKnowledgeProvider",
     "Tool",
     "ToolRegistry",
 ]
