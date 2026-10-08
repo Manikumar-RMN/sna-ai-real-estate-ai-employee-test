@@ -64,3 +64,20 @@ def test_sensitive_can_be_confirmed():
         confirm_sensitive=True,
     ).execute(make_tool(permission="sensitive"), "{}")
     assert result == 1
+
+def test_retryable_tool_retries_after_failure():
+    attempts = {"count": 0}
+
+    def flaky():
+        attempts["count"] += 1
+        if attempts["count"] < 2:
+            raise RuntimeError("temporary")
+        return "ok"
+
+    result = ToolExecutor().execute(
+        Tool("flaky", "test", flaky, {"type": "object"}, "read", "general", True),
+        "{}",
+        max_retries=1,
+    )
+    assert result == "ok"
+    assert attempts["count"] == 1
