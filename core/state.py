@@ -20,6 +20,8 @@ class AgentState:
     step: int = 0
     log: List[Dict[str, Any]] = field(default_factory=list)
     events: List[AgentEvent] = field(default_factory=list)
+    status: str = "running"
+    output: str = ""
 
     def record(self, event_type: str, step: int, **data: Any) -> None:
         self.events.append(AgentEvent(
