@@ -168,3 +168,39 @@ def test_runtime_context_is_injected_into_system_message():
     assert state is not None
     assert "biz-1" in state.messages[0]["content"]
     assert "whatsapp" in state.messages[0]["content"]
+
+
+def test_agent_cancels_a_saved_run():
+    store = InMemoryRunStore()
+    agent = Agent(FakeModel([ModelResponse(content="done")]), registry(), run_store=store)
+    result = agent.run_result("finish")
+    try:
+        agent.cancel(result.run_id)
+    except ValueError as e:
+        assert "already completed" in str(e)
+    else:
+        assert False
+
+
+def test_tool_call_policy_limit_stops_run():
+    class Loop:
+        def chat(self, messages, tools):
+            return ModelResponse(tool_calls=[ToolCall("x", "add", '{"a":1,"b":1}')])
+
+    result = Agent(
+        Loop(), registry(), AgentConfig(max_steps=8, max_tool_calls=2)
+    ).run_result("loop")
+    assert result.status == "policy_limit"
+
+
+def test_consecutive_tool_error_policy_stops_run():
+    class BadTool:
+        def chat(self, messages, tools):
+            return ModelResponse(tool_calls=[ToolCall("x", "missing", "{}")])
+
+    result = Agent(
+        BadTool(),
+        registry(),
+        AgentConfig(max_steps=8, max_consecutive_tool_errors=2),
+    ).run_result("errors")
+    assert result.status == "policy_limit"
