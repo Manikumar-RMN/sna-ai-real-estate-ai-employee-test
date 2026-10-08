@@ -1,4 +1,5 @@
 from core.agent import Agent
+from core.config import AgentConfig, RuntimeContext
 from core.models import ModelResponse, ToolCall
 from core.store import InMemoryRunStore
 from core.tool_registry import Tool, ToolRegistry
@@ -43,7 +44,7 @@ def test_agent_stops_at_limit():
         def chat(self, messages, tools):
             return ModelResponse(tool_calls=[ToolCall("x", "add", '{"a":1,"b":1}')])
 
-    assert "step limit" in Agent(Loop(), registry(), max_steps=2).run("loop")
+    assert "step limit" in Agent(Loop(), registry(), AgentConfig(max_steps=2)).run("loop")
 
 
 def test_empty_task_rejected():
@@ -74,7 +75,7 @@ def test_agent_can_execute_write_when_explicitly_allowed():
         ModelResponse(content="saved"),
     ])
     assert Agent(
-        model, r, allowed_permissions={"read", "write"}
+        model, r, AgentConfig(allowed_permissions={"read", "write"})
     ).run("save it") == "saved"
 
 
@@ -106,7 +107,7 @@ def test_agent_result_records_step_limit():
         def chat(self, messages, tools):
             return ModelResponse(tool_calls=[ToolCall("x", "add", '{"a":1,"b":1}')])
 
-    result = Agent(Loop(), registry(), max_steps=2).run_result("loop")
+    result = Agent(Loop(), registry(), AgentConfig(max_steps=2)).run_result("loop")
     assert result.status == "step_limit"
 
 
@@ -116,7 +117,7 @@ def test_run_is_persisted_and_can_be_resumed():
         ModelResponse(tool_calls=[ToolCall("1", "add", '{"a":2,"b":3}')]),
         ModelResponse(content="done"),
     ])
-    agent = Agent(model, registry(), max_steps=1, run_store=store)
+    agent = Agent(model, registry(), AgentConfig(max_steps=1), run_store=store)
 
     first = agent.run_result("calculate")
     assert first.status == "step_limit"
@@ -156,3 +157,14 @@ def test_completed_run_cannot_resume():
         assert "already completed" in str(e)
     else:
         assert False
+
+
+def test_runtime_context_is_injected_into_system_message():
+    model = FakeModel([ModelResponse(content="done")])
+    context = RuntimeContext(business_id="biz-1", channel="whatsapp")
+    agent = Agent(model, registry())
+    result = agent.run_result("hello", context)
+    state = agent.run_store.get(result.run_id)
+    assert state is not None
+    assert "biz-1" in state.messages[0]["content"]
+    assert "whatsapp" in state.messages[0]["content"]
