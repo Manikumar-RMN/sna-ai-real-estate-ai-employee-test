@@ -52,25 +52,16 @@ class ToolRegistry:
 
     def schemas(self) -> List[Dict[str, Any]]:
         return [
-            {
-                "name": t.name,
-                "description": t.description,
-                "input_schema": t.schema,
-                "permission": t.permission,
-                "category": t.category,
-            }
+            {"name": t.name, "description": t.description, "input_schema": t.schema,
+             "permission": t.permission, "category": t.category}
             for t in self._tools.values()
         ]
 
     def handlers(self) -> Dict[str, Callable[..., Any]]:
         return {name: tool.handler for name, tool in self._tools.items()}
 
-    def list_tools(
-        self,
-        *,
-        category: Optional[str] = None,
-        permission: Optional[str] = None,
-    ) -> List[Tool]:
+    def list_tools(self, *, category: Optional[str] = None,
+                   permission: Optional[str] = None) -> List[Tool]:
         tools = list(self._tools.values())
         if category is not None:
             tools = [tool for tool in tools if tool.category == category]
