@@ -20,7 +20,7 @@ class ToolExecutor:
         self.allowed_permissions = set(allowed_permissions or {"read"})
         self.confirm_sensitive = confirm_sensitive
 
-    def execute(self, tool: Tool, arguments_json: str) -> Any:
+    def execute(self, tool: Tool, arguments_json: str, max_retries: int = 0) -> Any:
         if tool.permission not in self.allowed_permissions:
             return {"error": f"Permission denied for tool '{tool.name}' ({tool.permission})"}
         if tool.permission == "sensitive" and not self.confirm_sensitive:
@@ -39,10 +39,14 @@ class ToolExecutor:
         except ValidationError as exc:
             return {"error": "Invalid tool arguments", "details": exc.message}
 
-        try:
-            with ThreadPoolExecutor(max_workers=1) as pool:
-                return pool.submit(tool.handler, **args).result(timeout=self.timeout_seconds)
-        except TimeoutError:
-            return {"error": f"Tool '{tool.name}' timed out after {self.timeout_seconds}s"}
-        except Exception as exc:
-            return {"error": f"Tool '{tool.name}' failed: {exc}"}
+        attempts = max_retries + 1 if tool.retryable else 1
+        last_error = None
+        for _ in range(attempts):
+            try:
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    return pool.submit(tool.handler, **args).result(timeout=self.timeout_seconds)
+            except TimeoutError:
+                last_error = f"Tool '{tool.name}' timed out after {self.timeout_seconds}s"
+            except Exception as exc:
+                last_error = f"Tool '{tool.name}' failed: {exc}"
+        return {"error": last_error or f"Tool '{tool.name}' failed"}
