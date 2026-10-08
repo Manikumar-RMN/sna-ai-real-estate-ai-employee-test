@@ -12,6 +12,8 @@ from .knowledge import CompositeKnowledgeProvider, KnowledgeItem, KnowledgeProvi
 from .knowledge_memory import InMemoryKnowledgeProvider
 from .supabase_knowledge import SupabaseKnowledgeProvider
 from .tool_registry import Tool, ToolRegistry
+from .tool_bundles import ToolBundle, ToolSet
+from .standard_tools import standard_tool_bundle
 
 __all__ = [
     "Agent",
@@ -36,4 +38,7 @@ __all__ = [
     "OpenAICompatibleProvider",
     "Tool",
     "ToolRegistry",
+    "ToolBundle",
+    "ToolSet",
+    "standard_tool_bundle",
 ]
