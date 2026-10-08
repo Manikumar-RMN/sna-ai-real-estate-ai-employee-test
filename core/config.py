@@ -19,6 +19,7 @@ class AgentConfig:
     confirm_sensitive: bool = False
     max_tool_calls: int = 32
     max_consecutive_tool_errors: int = 3
+    tool_max_retries: int = 0
 
     def __post_init__(self) -> None:
         if self.max_steps < 1:
@@ -29,6 +30,8 @@ class AgentConfig:
             raise ValueError("max_tool_calls must be >= 1")
         if self.max_consecutive_tool_errors < 1:
             raise ValueError("max_consecutive_tool_errors must be >= 1")
+        if self.tool_max_retries < 0:
+            raise ValueError("tool_max_retries must be >= 0")
         valid = {"read", "write", "sensitive"}
         invalid = set(self.allowed_permissions) - valid
         if invalid:
