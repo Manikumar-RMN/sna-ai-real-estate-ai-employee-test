@@ -40,7 +40,7 @@ def test_supabase_health_requires_url_and_publishable_key(monkeypatch):
     assert exc.value.status_code == 503
 
 
-def test_supabase_health_checks_auth_service_without_database_access(monkeypatch):
+def test_supabase_health_checks_auth_and_read_only_table_access(monkeypatch):
     monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
     monkeypatch.setenv("SUPABASE_ANON_KEY", "sb_publishable_test")
 
@@ -55,17 +55,27 @@ def test_supabase_health_checks_auth_service_without_database_access(monkeypatch
 
     def fake_urlopen(request, timeout):
         assert isinstance(request, Request)
-        assert request.full_url == "https://example.supabase.co/auth/v1/health"
         assert request.get_header("Apikey") == "sb_publishable_test"
         assert timeout == 4
         return FakeResponse()
 
-    monkeypatch.setattr(index, "urlopen", fake_urlopen)
+    seen_urls = []
+    def recording_urlopen(request, timeout):
+        seen_urls.append(request.full_url)
+        return fake_urlopen(request, timeout)
+
+    monkeypatch.setattr(index, "urlopen", recording_urlopen)
     assert index.supabase_health() == {
         "status": "reachable",
-        "database_access": False,
-        "mode": "connection_check_only",
+        "database_access": True,
+        "checked_tables": ["businesses", "agents"],
+        "mode": "read_only_access_check",
     }
+    assert seen_urls == [
+        "https://example.supabase.co/auth/v1/health",
+        "https://example.supabase.co/rest/v1/businesses?select=id&limit=1",
+        "https://example.supabase.co/rest/v1/agents?select=id&limit=1",
+    ]
 
 
 def test_supabase_health_rejects_non_https_url(monkeypatch):
