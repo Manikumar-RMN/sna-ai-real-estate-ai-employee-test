@@ -40,7 +40,7 @@ def health():
 
 @app.get("/api/supabase/health")
 def supabase_health():
-    """Check Supabase Auth service reachability without accessing user data."""
+    """Check Supabase reachability and read-only access to required tables."""
     project_url = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
     publishable_key = os.environ.get("SUPABASE_ANON_KEY", "").strip()
 
@@ -50,18 +50,41 @@ def supabase_health():
     if not publishable_key:
         raise HTTPException(status_code=503, detail="Supabase publishable key is not configured.")
 
-    request = Request(
-        f"{project_url}/auth/v1/health",
-        headers={"apikey": publishable_key, "Accept": "application/json"},
-        method="GET",
-    )
+    headers = {"apikey": publishable_key, "Accept": "application/json"}
     try:
-        with urlopen(request, timeout=4) as response:
+        health_request = Request(
+            f"{project_url}/auth/v1/health",
+            headers=headers,
+            method="GET",
+        )
+        with urlopen(health_request, timeout=4) as response:
             if not 200 <= response.status < 300:
                 raise HTTPException(status_code=502, detail="Supabase health check failed.")
-        return {"status": "reachable", "database_access": False, "mode": "connection_check_only"}
-    except HTTPError:
-        raise HTTPException(status_code=502, detail="Supabase health check failed.")
+
+        # Read-only REST queries verify that the expected tables resolve.
+        # RLS may correctly return an empty array; no records are changed.
+        checked_tables = []
+        for table in ("businesses", "agents"):
+            table_request = Request(
+                f"{project_url}/rest/v1/{table}?select=id&limit=1",
+                headers=headers,
+                method="GET",
+            )
+            with urlopen(table_request, timeout=4) as response:
+                if not 200 <= response.status < 300:
+                    raise HTTPException(status_code=502, detail="Supabase table access check failed.")
+                checked_tables.append(table)
+
+        return {
+            "status": "reachable",
+            "database_access": True,
+            "checked_tables": checked_tables,
+            "mode": "read_only_access_check",
+        }
+    except HTTPError as exc:
+        if exc.code in (401, 403):
+            raise HTTPException(status_code=502, detail="Supabase rejected the read-only access check.")
+        raise HTTPException(status_code=502, detail="Supabase health or table access check failed.")
     except (URLError, TimeoutError, OSError):
         raise HTTPException(status_code=502, detail="Supabase is unreachable.")
 
