@@ -169,13 +169,13 @@ def create_agent(body: AgentCreate, authorization: str | None = Header(default=N
 
 
 @router.patch("/agents/{agent_id}")
-def update_agent(agent_id: str, body: AgentCreate, authorization: str | None = Header(default=None)):
+def update_agent(agent_id: UUID, body: AgentCreate, authorization: str | None = Header(default=None)):
     token, user = _authenticated_user(authorization)
     profile = _profile(token, user["id"])
     if not profile:
         raise HTTPException(status_code=409, detail="Create your workspace before editing AI employees.")
     rows = _request(
-        "/rest/v1/agents?id=eq." + agent_id + "&business_id=eq." + profile["business_id"],
+        "/rest/v1/agents?id=eq." + str(agent_id) + "&business_id=eq." + profile["business_id"],
         token=token, method="PATCH",
         payload={"name": body.name.strip(), "description": body.description.strip(),
                  "system_prompt": body.system_prompt.strip(), "status": body.status},
