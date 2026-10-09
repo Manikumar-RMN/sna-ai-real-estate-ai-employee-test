@@ -77,3 +77,15 @@ def test_caller_can_keep_writes_disabled():
         config=AgentConfig(allowed_permissions=set()),
     )
     assert employee.agent.config.allowed_permissions == set()
+
+
+def test_hot_tier_requires_contact_method_even_with_consent():
+    result = qualify_lead(LeadProfile(
+        need="Looking for a home",
+        budget="₹80 lakh",
+        timeline="Within 3 months",
+        consent_to_contact=True,
+    ))
+    assert result.score == 75
+    assert result.tier == "warm"
+    assert "contact_method" in result.missing_fields
