@@ -74,7 +74,7 @@ def qualify_lead(profile: LeadProfile) -> LeadQualification:
         if profile.consent_to_contact is not True:
             missing.append("consent_to_contact")
 
-    tier = "hot" if score >= 75 and profile.consent_to_contact is True else "warm" if score >= 50 else "nurture"
+    tier = "hot" if score >= 75 and profile.consent_to_contact is True and profile.contact_method.strip() else "warm" if score >= 50 else "nurture"
     return LeadQualification(
         score=score,
         tier=tier,
