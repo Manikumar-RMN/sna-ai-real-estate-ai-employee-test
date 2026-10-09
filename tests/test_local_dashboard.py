@@ -1,4 +1,4 @@
-from examples.local_dashboard import qualification_from_payload, search_mock_crm
+from core.local_dashboard import qualification_from_payload, search_mock_crm
 from core.mock_crm import MockCRM
 import pytest
 
