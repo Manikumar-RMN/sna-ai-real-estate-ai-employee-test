@@ -36,7 +36,8 @@ def qualify_lead(profile: LeadProfile) -> LeadQualification:
     """Score a lead from explicit fit/readiness signals, with reasons.
 
     Weights: clear need (25), budget supplied (25), timeline supplied (25),
-    and a contact method plus explicit contact consent (25). This is a simple
+    and a contact method plus explicit contact consent (25). A lead cannot be
+    labeled hot without explicit contact consent, regardless of score. This is a
     configurable starting policy, not a claim about conversion probability.
     """
     if not isinstance(profile, LeadProfile):
@@ -73,7 +74,7 @@ def qualify_lead(profile: LeadProfile) -> LeadQualification:
         if profile.consent_to_contact is not True:
             missing.append("consent_to_contact")
 
-    tier = "hot" if score >= 75 else "warm" if score >= 50 else "nurture"
+    tier = "hot" if score >= 75 and profile.consent_to_contact is True else "warm" if score >= 50 else "nurture"
     return LeadQualification(
         score=score,
         tier=tier,
