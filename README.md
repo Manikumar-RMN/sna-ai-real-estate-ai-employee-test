@@ -176,3 +176,17 @@ integration_tool_bundle(integrations, actions).register_into(tools)
 ```
 
 This is a local development/test adapter only. It is not tenant-isolated production storage and does not implement a real CRM API, OAuth, credential management, audit persistence, or human approval UI.
+
+
+## V2.1 — Secure HTTP Integration Foundation
+
+V2.1 adds a provider-neutral HTTP foundation for future external integrations:
+
+- `TenantScopedHttpJsonClient` uses a fixed, application-configured base URL and accepts only relative paths; model-generated full URLs are not accepted.
+- HTTPS is required by default. Plain HTTP is available only when explicitly enabled for local development.
+- A `SecretProvider` resolves bearer credentials by tenant, integration, and secret name. The included `InMemorySecretProvider` is for tests/local development only; production should use a managed secrets vault.
+- Requests have bounded timeouts and response sizes, allowlisted HTTP methods, JSON payload handling, and sanitized errors.
+- Redirects are rejected to avoid forwarding authorization headers to another origin.
+- Tenant identity must come from the authenticated application layer, never from an LLM tool argument. This client is not a substitute for authentication, authorization, vendor-specific OAuth, or tenant-isolation testing.
+
+No external service is configured or called by the tests. Before connecting a real provider, implement a production secret provider, add vendor-specific endpoint/action allow-lists, and verify the authenticated tenant boundary.
