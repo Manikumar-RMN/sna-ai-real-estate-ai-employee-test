@@ -269,3 +269,14 @@ python examples/lead_qualification_employee.py
 ### Still requires deployment-specific setup
 
 The repository now has a tested offline employee example, but it is not yet a production SaaS by itself. A real launch still requires an authenticated application/API, persistent tenant-aware authorization and audit records, production secret storage, a configured model provider, an actual n8n endpoint/workflow, customer-facing channels, and deployment smoke tests. These cannot be completed safely without the corresponding account configuration and credentials. Never put secrets in source control.
+
+
+### End-to-end offline CRM demo
+
+The demo below exercises the actual AIEmployee → Agent tool-call loop → permission-checked integration tool → mock CRM path. It uses a deterministic model stub and keeps writes disabled.
+
+```bash
+python examples/mock_crm_employee.py
+```
+
+The example searches the sample CRM for a contact and prepares an internal summary. It does not send a message, create or update a record, contact a real person, or make a network request.
