@@ -19,6 +19,7 @@ from .integration_executor import IntegrationAction, IntegrationActionExecutor, 
 from .integration_tools import integration_tool_bundle
 from .mock_crm import MockCRM, register_mock_crm
 from .secure_http import (HttpResponse, InMemorySecretProvider, IntegrationRequestError, SecretProvider, TenantScopedHttpJsonClient, UrllibHttpTransport)
+from .n8n_webhook import N8nWebhookAdapter, register_n8n_webhook
 from .tool_bundles import ToolBundle, ToolSet
 from .standard_tools import standard_tool_bundle
 
@@ -68,4 +69,6 @@ __all__ = [
     "IntegrationRequestError",
     "TenantScopedHttpJsonClient",
     "UrllibHttpTransport",
+    "N8nWebhookAdapter",
+    "register_n8n_webhook",
 ]
