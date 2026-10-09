@@ -7,11 +7,10 @@ SecretProvider using a managed secrets vault, not InMemorySecretProvider.
 """
 from dataclasses import dataclass
 import json
-import os
 from typing import Any, Mapping, Optional, Protocol
 from urllib.error import HTTPError, URLError
 from urllib.parse import unquote, urlencode, urlsplit
-from urllib.request import HTTPHandler, HTTPSHandler, Request, build_opener
+from urllib.request import HTTPHandler, HTTPSHandler, HTTPRedirectHandler, Request, build_opener
 
 
 class IntegrationRequestError(RuntimeError):
@@ -54,7 +53,7 @@ class HttpTransport(Protocol):
         ...
 
 
-class _NoRedirect:
+class _NoRedirect(HTTPRedirectHandler):
     """urllib redirect handler: redirects are rejected to prevent credential forwarding."""
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
