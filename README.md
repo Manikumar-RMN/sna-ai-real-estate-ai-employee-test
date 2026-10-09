@@ -230,3 +230,42 @@ result = executor.execute("n8n_webhook", "trigger", {
 ```
 
 This is not yet a live n8n connection. Production use still requires a managed secret provider, tenant-authentication boundary, vendor-specific authentication/configuration, webhook-side verification, audit logging, and an explicit configured endpoint. Never commit webhook URLs containing secret tokens or credentials.
+
+
+## V2.3 — Lead Qualification Employee
+
+V2.3 adds a reusable, model-provider-neutral lead qualification employee definition and an explainable starter scoring helper.
+
+- `create_lead_qualification_employee(model, registry, ...)` creates an `AIEmployee` with a qualification-specific role and guardrails.
+- `LeadProfile` captures only explicitly provided need, budget, timeline, contact method, and contact consent.
+- `qualify_lead(profile)` returns a deterministic 0–100 readiness score, a tier (`hot`, `warm`, or `nurture`), reasons, and missing fields.
+- The starter score is a transparent rules-based heuristic, not a prediction of conversion probability. Adjust weights and thresholds to the business's actual sales process.
+- No CRM write, email, WhatsApp message, n8n workflow, or paid model call is activated automatically.
+- `examples/lead_qualification_employee.py` is an offline smoke-test example using a fake model; replace it with a configured model provider for real AI conversations.
+
+Example:
+
+```python
+from core import LeadProfile, qualify_lead
+
+result = qualify_lead(LeadProfile(
+    need="Looking for a home",
+    budget="₹80 lakh",
+    timeline="Within three months",
+    contact_method="email",
+    consent_to_contact=True,
+))
+print(result.score, result.tier, result.reasons)
+```
+
+Run locally:
+
+```bash
+pip install -e ".[test]"
+pytest -q
+python examples/lead_qualification_employee.py
+```
+
+### Still requires deployment-specific setup
+
+The repository now has a tested offline employee example, but it is not yet a production SaaS by itself. A real launch still requires an authenticated application/API, persistent tenant-aware authorization and audit records, production secret storage, a configured model provider, an actual n8n endpoint/workflow, customer-facing channels, and deployment smoke tests. These cannot be completed safely without the corresponding account configuration and credentials. Never put secrets in source control.
