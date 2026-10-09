@@ -32,7 +32,7 @@ def test_no_contact_consent_reduces_score_and_is_reported():
         consent_to_contact=False,
     ))
     assert result.score == 75
-    assert result.tier == "hot"
+    assert result.tier == "warm"
     assert "consent_to_contact" in result.missing_fields
     assert not any("consent" in reason.lower() and "provided" in reason.lower()
                    for reason in result.reasons)
