@@ -14,6 +14,7 @@ from .knowledge_memory import InMemoryKnowledgeProvider
 from .supabase_knowledge import SupabaseKnowledgeProvider
 from .tool_registry import Tool, ToolRegistry
 from .integrations import FunctionIntegration, IntegrationAdapter, IntegrationDescriptor, IntegrationHealth, IntegrationRegistry
+from .integration_executor import IntegrationAction, IntegrationActionExecutor, IntegrationActionRegistry, IntegrationActionResult
 from .tool_bundles import ToolBundle, ToolSet
 from .standard_tools import standard_tool_bundle
 
@@ -47,6 +48,10 @@ __all__ = [
     "IntegrationHealth",
     "IntegrationRegistry",
     "FunctionIntegration",
+    "IntegrationAction",
+    "IntegrationActionRegistry",
+    "IntegrationActionExecutor",
+    "IntegrationActionResult",
     "ToolBundle",
     "ToolSet",
     "standard_tool_bundle",
