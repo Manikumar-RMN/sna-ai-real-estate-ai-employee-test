@@ -36,3 +36,38 @@ Business-specific bundles can later provide CRM, calendar, communication, or oth
 ## Production integration boundary
 
 The engine remains intentionally separate from business-specific AI employees, external integrations, authentication, tenant isolation, secrets management, deployment infrastructure, billing, and admin UI.
+
+## V1.7 — AI Employee Runtime
+
+V1.7 adds a vertical-neutral employee layer on top of the core Agent:
+
+- `EmployeeDefinition` captures an employee's name, role, description, goals, instructions, and metadata.
+- `AIEmployee` composes that definition with the existing model, tool registry, permissions, knowledge provider, and run store.
+- Employee tasks return the same structured `AgentResult` and support resume, cancellation, and knowledge search.
+- Employee identity and goals are incorporated into the system prompt; runtime permissions and policy limits remain controlled by `AgentConfig`.
+
+Example:
+
+```python
+from core import AIEmployee, EmployeeDefinition, ToolRegistry
+from core.models import ModelResponse
+
+class MyModel:
+    def chat(self, messages, tools):
+        return ModelResponse(content="Task completed.")
+
+employee = AIEmployee(
+    EmployeeDefinition(
+        name="Operations Assistant",
+        role="Operations",
+        goals=("Complete routine tasks accurately",),
+        instructions="Be concise and report blockers clearly.",
+    ),
+    model=MyModel(),
+    registry=ToolRegistry(),
+)
+result = employee.run_result("Prepare today's status summary")
+print(result.status, result.output)
+```
+
+This layer is still integration-neutral: CRM, messaging, email, and calendar adapters belong in the integration layer.
