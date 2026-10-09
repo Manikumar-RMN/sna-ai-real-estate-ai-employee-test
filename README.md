@@ -71,3 +71,34 @@ print(result.status, result.output)
 ```
 
 This layer is still integration-neutral: CRM, messaging, email, and calendar adapters belong in the integration layer.
+
+## V1.8 — Integration Layer
+
+V1.8 introduces provider-neutral integration contracts without coupling the Agent runtime to external vendors:
+
+- `IntegrationDescriptor` declares an adapter's name, version, description, capabilities, and non-secret metadata.
+- `IntegrationAdapter` defines the minimal adapter contract and health-check behavior.
+- `IntegrationRegistry` supports single and atomic batch registration, lookup, capability discovery, and health checks.
+- `FunctionIntegration` provides a small helper for local/mock adapters.
+- No credentials are stored by this layer, and registering an adapter does not make network calls.
+
+Example:
+
+```python
+from core.integrations import (
+    FunctionIntegration,
+    IntegrationDescriptor,
+    IntegrationRegistry,
+)
+
+registry = IntegrationRegistry()
+registry.register(FunctionIntegration(
+    descriptor=IntegrationDescriptor(
+        name="crm",
+        capabilities=("contacts.read", "contacts.write"),
+    )
+))
+print(registry.list_integrations(capability="contacts.read"))
+```
+
+Concrete CRM, messaging, email, and calendar connectors can implement this contract in separate modules. Keep credentials in server-side configuration and require explicit authorization for write or sensitive operations. A registered adapter's default health check only confirms local registration, not external connectivity.
