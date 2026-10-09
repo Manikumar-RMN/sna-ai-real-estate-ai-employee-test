@@ -49,13 +49,30 @@ def _request(path, token=None, method="GET", payload=None, prefer=None):
             raw = response.read().decode("utf-8")
             return json.loads(raw) if raw else None
     except HTTPError as exc:
+        err_body = ""
+        try:
+            err_body = exc.read().decode("utf-8")[:300]
+        except Exception:
+            pass
         if exc.code in (401, 403):
-            raise HTTPException(status_code=401, detail="Your session is invalid or access is not permitted.")
+            raise HTTPException(
+                status_code=401,
+                detail="Your session is invalid or access is not permitted."
+                + ((" Supabase: " + err_body) if err_body else ""),
+            )
         if exc.code == 409:
             raise HTTPException(status_code=409, detail="This record already exists.")
         if exc.code == 400:
-            raise HTTPException(status_code=400, detail="The submitted data was rejected. Check required fields.")
-        raise HTTPException(status_code=502, detail="Supabase request failed.")
+            raise HTTPException(
+                status_code=400,
+                detail="The submitted data was rejected. Check required fields."
+                + ((" Supabase: " + err_body) if err_body else ""),
+            )
+        raise HTTPException(
+            status_code=502,
+            detail="Supabase request failed."
+            + ((" " + err_body) if err_body else ""),
+        )
     except (URLError, TimeoutError, OSError, ValueError):
         raise HTTPException(status_code=502, detail="Supabase is unavailable or returned an invalid response.")
 
