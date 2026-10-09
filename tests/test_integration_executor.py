@@ -129,3 +129,19 @@ def test_empty_permission_set_denies_everything():
     actions.register("crm", action())
     executor = IntegrationActionExecutor(integrations, actions, allowed_permissions=set())
     assert not executor.execute("crm", "lookup", {"contact_id": "c-123"}).ok
+
+
+
+def test_action_capability_must_be_declared_by_integration():
+    integrations, actions = setup()
+    invalid = action()
+    invalid = IntegrationAction(
+        name=invalid.name,
+        description=invalid.description,
+        handler=invalid.handler,
+        schema=invalid.schema,
+        permission=invalid.permission,
+        capability="contacts.delete",
+    )
+    with pytest.raises(ValueError, match="does not declare capability"):
+        actions.register("crm", invalid)
