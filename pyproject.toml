@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sna-ai-agent-engine"
-version = "1.6.0"
+version = "2.0.0"
 description = "Reusable, provider-neutral AI agent runtime for SNA AI with pluggable tools, knowledge, and LLM providers"
 requires-python = ">=3.10"
 dependencies = [
