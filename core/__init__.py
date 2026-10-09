@@ -1,6 +1,7 @@
 """SNA AI Agent Engine public API."""
 
 from .agent import Agent
+from .employee import AIEmployee, EmployeeDefinition
 from .config import AgentConfig, RuntimeContext
 from .memory import ConversationMemory
 from .models import AgentResult, ModelResponse, ToolCall
@@ -17,6 +18,8 @@ from .standard_tools import standard_tool_bundle
 
 __all__ = [
     "Agent",
+    "AIEmployee",
+    "EmployeeDefinition",
     "AgentConfig",
     "RuntimeContext",
     "ConversationMemory",
