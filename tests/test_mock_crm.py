@@ -76,7 +76,7 @@ def test_mock_crm_create_contact_is_denied_under_read_only_defaults():
     result = agent.run_result("Create a demo contact")
     assert result.status == "completed"
     assert crm.search_contacts("Demo User")["count"] == 0
-    tool_results = [entry["result"] for entry in agent.agent.run_store.get(result.run_id).log]
+    tool_results = [entry["result"] for entry in agent.run_store.get(result.run_id).log]
     assert tool_results
     assert tool_results[0]["error"].startswith("Permission denied")
 
