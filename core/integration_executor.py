@@ -61,6 +61,12 @@ class IntegrationActionRegistry:
         if self.integrations.get(integration_name) is None:
             raise ValueError(f"integration not found: {integration_name}")
         actions = self._actions.setdefault(integration_name, {})
+        descriptor = self.integrations.get(integration_name).descriptor
+        if action.capability is not None and action.capability not in descriptor.capabilities:
+            raise ValueError(
+                f"integration '{integration_name}' does not declare capability "
+                f"'{action.capability}'"
+            )
         if action.name in actions:
             raise ValueError(
                 f"integration action already registered: {integration_name}.{action.name}"
