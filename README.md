@@ -190,3 +190,43 @@ V2.1 adds a provider-neutral HTTP foundation for future external integrations:
 - Tenant identity must come from the authenticated application layer, never from an LLM tool argument. This client is not a substitute for authentication, authorization, vendor-specific OAuth, or tenant-isolation testing.
 
 No external service is configured or called by the tests. Before connecting a real provider, implement a production secret provider, add vendor-specific endpoint/action allow-lists, and verify the authenticated tenant boundary.
+
+
+## V2.2 — n8n Webhook Adapter
+
+V2.2 adds a first provider-specific adapter using the secure HTTP foundation:
+
+- `N8nWebhookAdapter` posts a JSON event to one fixed webhook path configured by the application.
+- The webhook URL/path and tenant identity are not model-controlled arguments. Instantiate/register the adapter within the authenticated tenant's application context.
+- The action is explicitly marked `write`, so it is denied by the default read-only integration executor until write permission is deliberately enabled.
+- The health check is local-only and does not accidentally trigger a workflow.
+- Tests use a fake transport; they do not contact n8n or any external service.
+
+Example (configure `client`, secret provider, tenant, and webhook path on the server first):
+
+```python
+from core import (
+    IntegrationActionExecutor, IntegrationActionRegistry, IntegrationRegistry,
+    N8nWebhookAdapter, register_n8n_webhook,
+)
+
+integrations = IntegrationRegistry()
+actions = IntegrationActionRegistry(integrations)
+adapter = N8nWebhookAdapter(
+    client=client,  # TenantScopedHttpJsonClient configured server-side
+    tenant_id=authenticated_tenant_id,
+    webhook_path="webhook/your-configured-webhook-id",
+)
+register_n8n_webhook(integrations, actions, adapter)
+
+# Triggering workflows is a write action; grant deliberately.
+executor = IntegrationActionExecutor(
+    integrations, actions, allowed_permissions={"read", "write"},
+)
+result = executor.execute("n8n_webhook", "trigger", {
+    "event_name": "lead.created",
+    "payload": {"lead_id": "demo-123"},
+})
+```
+
+This is not yet a live n8n connection. Production use still requires a managed secret provider, tenant-authentication boundary, vendor-specific authentication/configuration, webhook-side verification, audit logging, and an explicit configured endpoint. Never commit webhook URLs containing secret tokens or credentials.
