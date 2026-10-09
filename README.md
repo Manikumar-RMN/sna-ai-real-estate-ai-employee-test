@@ -144,3 +144,35 @@ print(result.ok, result.output)
 ```
 
 No real CRM, WhatsApp, email, or calendar service is connected by these tests; the examples use local handlers only.
+
+
+## V2.0 — Mock CRM and Agent Runtime Bridge
+
+V2.0 demonstrates the integration path end to end using an ephemeral in-memory CRM. It does not connect to a real CRM or persist contact data.
+
+- `MockCRM` provides local search, get, create, and update contact operations with sample records.
+- `register_mock_crm` registers explicit actions and declared capabilities.
+- `integration_tool_bundle` exposes registered integration actions as namespaced Agent tools, such as `integration__mock_crm__search_contacts`.
+- The existing Agent tool executor and the integration action executor both enforce permissions. Keep their `allowed_permissions` and `confirm_sensitive` settings aligned.
+- Read actions work with the default read-only policy. Create/update actions are denied unless write permission is explicitly granted.
+- Integration write tools are non-retryable by default to avoid accidental duplicate writes.
+
+Example setup:
+
+```python
+from core import (
+    AgentConfig, IntegrationActionRegistry, IntegrationRegistry,
+    MockCRM, ToolRegistry, integration_tool_bundle, register_mock_crm,
+)
+
+integrations = IntegrationRegistry()
+actions = IntegrationActionRegistry(integrations)
+crm = register_mock_crm(integrations, actions, MockCRM())
+tools = ToolRegistry()
+integration_tool_bundle(integrations, actions).register_into(tools)
+
+# Supply your chosen model provider to Agent/AIEmployee.
+# Default permissions remain read-only; enable writes deliberately.
+```
+
+This is a local development/test adapter only. It is not tenant-isolated production storage and does not implement a real CRM API, OAuth, credential management, audit persistence, or human approval UI.
