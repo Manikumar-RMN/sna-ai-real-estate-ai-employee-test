@@ -117,3 +117,9 @@ def test_insecure_http_can_only_be_enabled_explicitly():
         secret_provider=provider, transport=FakeTransport(), allow_insecure_http=True,
     )
     assert client.request(tenant_id="t", method="GET", path="health") == {"ok": True}
+
+
+def test_public_path_validator_rejects_encoded_traversal():
+    with pytest.raises(ValueError):
+        TenantScopedHttpJsonClient.validate_relative_path("%2e%2e/secrets")
+    assert TenantScopedHttpJsonClient.validate_relative_path("webhook/events") == "webhook/events"
