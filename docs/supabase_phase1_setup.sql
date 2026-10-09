@@ -1,8 +1,6 @@
--- SNA AI Agent Studio — Supabase foundation setup
--- Run this in Supabase SQL Editor (Project → SQL Editor → New query)
--- Phase 1: workspace isolation + RLS so authenticated users can create workspaces
+-- SNA AI Agent Studio — Phase 1 foundation (schema + RLS)
+-- Run in Supabase → SQL Editor → New query → Run
 
--- ========== 1) Ensure required tables / columns ==========
 CREATE TABLE IF NOT EXISTS public.businesses (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL,
@@ -10,15 +8,9 @@ CREATE TABLE IF NOT EXISTS public.businesses (
   owner_auth_user_id uuid REFERENCES auth.users(id),
   created_at timestamptz NOT NULL DEFAULT now()
 );
-
-ALTER TABLE public.businesses
-  ADD COLUMN IF NOT EXISTS owner_auth_user_id uuid REFERENCES auth.users(id);
-
-ALTER TABLE public.businesses
-  ADD COLUMN IF NOT EXISTS status text DEFAULT 'active';
-
-ALTER TABLE public.businesses
-  ADD COLUMN IF NOT EXISTS name text;
+ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS owner_auth_user_id uuid REFERENCES auth.users(id);
+ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS status text DEFAULT 'active';
+ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS name text;
 
 CREATE TABLE IF NOT EXISTS public.users (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -30,7 +22,6 @@ CREATE TABLE IF NOT EXISTS public.users (
   status text DEFAULT 'active',
   created_at timestamptz NOT NULL DEFAULT now()
 );
-
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS business_id uuid;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS auth_user_id uuid;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS name text;
@@ -49,7 +40,6 @@ CREATE TABLE IF NOT EXISTS public.agents (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
-
 ALTER TABLE public.agents ADD COLUMN IF NOT EXISTS business_id uuid;
 ALTER TABLE public.agents ADD COLUMN IF NOT EXISTS description text DEFAULT '';
 ALTER TABLE public.agents ADD COLUMN IF NOT EXISTS system_prompt text;
@@ -75,7 +65,6 @@ CREATE TABLE IF NOT EXISTS public.prospects (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
-
 ALTER TABLE public.prospects ADD COLUMN IF NOT EXISTS business_id uuid;
 ALTER TABLE public.prospects ADD COLUMN IF NOT EXISTS segment text DEFAULT 'services';
 ALTER TABLE public.prospects ADD COLUMN IF NOT EXISTS city text DEFAULT '';
@@ -90,79 +79,45 @@ ALTER TABLE public.prospects ADD COLUMN IF NOT EXISTS stage text DEFAULT 'resear
 ALTER TABLE public.prospects ADD COLUMN IF NOT EXISTS notes text DEFAULT '';
 ALTER TABLE public.prospects ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
 
--- ========== 2) Enable RLS ==========
 ALTER TABLE public.businesses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.agents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.prospects ENABLE ROW LEVEL SECURITY;
 
--- ========== 3) Drop old policies if re-running ==========
 DROP POLICY IF EXISTS "authenticated_insert_businesses" ON public.businesses;
 DROP POLICY IF EXISTS "authenticated_select_businesses" ON public.businesses;
 DROP POLICY IF EXISTS "authenticated_update_businesses" ON public.businesses;
+DROP POLICY IF EXISTS "authenticated_delete_businesses" ON public.businesses;
 DROP POLICY IF EXISTS "authenticated_insert_users" ON public.users;
 DROP POLICY IF EXISTS "authenticated_select_users" ON public.users;
 DROP POLICY IF EXISTS "authenticated_update_users" ON public.users;
 DROP POLICY IF EXISTS "authenticated_all_agents" ON public.agents;
 DROP POLICY IF EXISTS "authenticated_all_prospects" ON public.prospects;
 
--- ========== 4) Policies: businesses ==========
-CREATE POLICY "authenticated_insert_businesses"
-ON public.businesses FOR INSERT TO authenticated
+CREATE POLICY "authenticated_insert_businesses" ON public.businesses FOR INSERT TO authenticated
 WITH CHECK (auth.uid() = owner_auth_user_id);
-
-CREATE POLICY "authenticated_select_businesses"
-ON public.businesses FOR SELECT TO authenticated
+CREATE POLICY "authenticated_select_businesses" ON public.businesses FOR SELECT TO authenticated
+USING (auth.uid() = owner_auth_user_id);
+CREATE POLICY "authenticated_update_businesses" ON public.businesses FOR UPDATE TO authenticated
+USING (auth.uid() = owner_auth_user_id) WITH CHECK (auth.uid() = owner_auth_user_id);
+CREATE POLICY "authenticated_delete_businesses" ON public.businesses FOR DELETE TO authenticated
 USING (auth.uid() = owner_auth_user_id);
 
-CREATE POLICY "authenticated_update_businesses"
-ON public.businesses FOR UPDATE TO authenticated
-USING (auth.uid() = owner_auth_user_id)
-WITH CHECK (auth.uid() = owner_auth_user_id);
-
--- ========== 5) Policies: users ==========
-CREATE POLICY "authenticated_insert_users"
-ON public.users FOR INSERT TO authenticated
+CREATE POLICY "authenticated_insert_users" ON public.users FOR INSERT TO authenticated
 WITH CHECK (auth.uid() = auth_user_id);
-
-CREATE POLICY "authenticated_select_users"
-ON public.users FOR SELECT TO authenticated
+CREATE POLICY "authenticated_select_users" ON public.users FOR SELECT TO authenticated
 USING (auth.uid() = auth_user_id);
+CREATE POLICY "authenticated_update_users" ON public.users FOR UPDATE TO authenticated
+USING (auth.uid() = auth_user_id) WITH CHECK (auth.uid() = auth_user_id);
 
-CREATE POLICY "authenticated_update_users"
-ON public.users FOR UPDATE TO authenticated
-USING (auth.uid() = auth_user_id)
-WITH CHECK (auth.uid() = auth_user_id);
+CREATE POLICY "authenticated_all_agents" ON public.agents FOR ALL TO authenticated
+USING (business_id IN (SELECT business_id FROM public.users WHERE auth_user_id = auth.uid()))
+WITH CHECK (business_id IN (SELECT business_id FROM public.users WHERE auth_user_id = auth.uid()));
 
--- ========== 6) Policies: agents ==========
-CREATE POLICY "authenticated_all_agents"
-ON public.agents FOR ALL TO authenticated
-USING (
-  business_id IN (
-    SELECT business_id FROM public.users WHERE auth_user_id = auth.uid()
-  )
-)
-WITH CHECK (
-  business_id IN (
-    SELECT business_id FROM public.users WHERE auth_user_id = auth.uid()
-  )
-);
+CREATE POLICY "authenticated_all_prospects" ON public.prospects FOR ALL TO authenticated
+USING (business_id IN (SELECT business_id FROM public.users WHERE auth_user_id = auth.uid()))
+WITH CHECK (business_id IN (SELECT business_id FROM public.users WHERE auth_user_id = auth.uid()));
 
--- ========== 7) Policies: prospects ==========
-CREATE POLICY "authenticated_all_prospects"
-ON public.prospects FOR ALL TO authenticated
-USING (
-  business_id IN (
-    SELECT business_id FROM public.users WHERE auth_user_id = auth.uid()
-  )
-)
-WITH CHECK (
-  business_id IN (
-    SELECT business_id FROM public.users WHERE auth_user_id = auth.uid()
-  )
-);
-
--- ========== 8) Indexes ==========
 CREATE INDEX IF NOT EXISTS idx_users_auth_user_id ON public.users(auth_user_id);
 CREATE INDEX IF NOT EXISTS idx_users_business_id ON public.users(business_id);
 CREATE INDEX IF NOT EXISTS idx_businesses_owner ON public.businesses(owner_auth_user_id);
