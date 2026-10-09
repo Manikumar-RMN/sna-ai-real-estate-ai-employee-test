@@ -17,7 +17,7 @@ class ToolExecutor:
         if timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be > 0")
         self.timeout_seconds = timeout_seconds
-        self.allowed_permissions = set(allowed_permissions or {"read"})
+        self.allowed_permissions = set({"read"} if allowed_permissions is None else allowed_permissions)
         self.confirm_sensitive = confirm_sensitive
 
     def execute(self, tool: Tool, arguments_json: str, max_retries: int = 0) -> Any:
