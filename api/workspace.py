@@ -126,7 +126,7 @@ def create_workspace(body: WorkspaceCreate, authorization: str | None = Header(d
     rows = _request(
         "/rest/v1/businesses?select=id,name,status",
         token=token, method="POST",
-        payload={"name": body.business_name.strip(), "status": "active"},
+        payload={"name": body.business_name.strip(), "status": "active", "owner_auth_user_id": user["id"]},
         prefer="return=representation",
     )
     if not isinstance(rows, list) or not rows:
