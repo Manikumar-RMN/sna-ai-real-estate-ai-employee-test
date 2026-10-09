@@ -184,3 +184,72 @@ def update_agent(agent_id: UUID, body: AgentCreate, authorization: str | None = 
     if not isinstance(rows, list) or not rows:
         raise HTTPException(status_code=404, detail="AI employee was not found in this workspace.")
     return {key: rows[0][key] for key in ("id", "business_id", "name", "description", "status", "created_at", "updated_at") if key in rows[0]}
+
+
+class ProspectCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=180)
+    segment: str = Field(default="services", pattern="^(coaching|real_estate|services|other)$")
+    city: str = Field(default="", max_length=120)
+    website: str = Field(default="", max_length=500)
+    contact_name: str = Field(default="", max_length=160)
+    contact_email: str = Field(default="", max_length=254)
+    contact_phone: str = Field(default="", max_length=50)
+    source_url: str = Field(default="", max_length=1000)
+    evidence: str = Field(default="", max_length=3000)
+    score: int = Field(default=0, ge=0, le=100)
+    stage: str = Field(default="researched", pattern="^(researched|qualified|contacted|replied|meeting|proposal|won|lost|do_not_contact)$")
+    notes: str = Field(default="", max_length=3000)
+
+
+class ProspectStageUpdate(BaseModel):
+    stage: str = Field(pattern="^(researched|qualified|contacted|replied|meeting|proposal|won|lost|do_not_contact)$")
+    notes: str | None = Field(default=None, max_length=3000)
+
+
+@router.get("/prospects")
+def list_prospects(authorization: str | None = Header(default=None)):
+    token, user = _authenticated_user(authorization)
+    profile = _profile(token, user["id"])
+    if not profile:
+        raise HTTPException(status_code=409, detail="Create your workspace before managing prospects.")
+    rows = _request(
+        "/rest/v1/prospects?select=id,name,segment,city,website,contact_name,contact_email,contact_phone,source_url,evidence,score,stage,notes,created_at,updated_at&business_id=eq."
+        + profile["business_id"] + "&order=created_at.desc&limit=200",
+        token=token,
+    )
+    return {"items": rows if isinstance(rows, list) else [], "count": len(rows) if isinstance(rows, list) else 0}
+
+
+@router.post("/prospects")
+def create_prospect(body: ProspectCreate, authorization: str | None = Header(default=None)):
+    token, user = _authenticated_user(authorization)
+    profile = _profile(token, user["id"])
+    if not profile:
+        raise HTTPException(status_code=409, detail="Create your workspace before managing prospects.")
+    payload = body.model_dump()
+    payload["business_id"] = profile["business_id"]
+    rows = _request("/rest/v1/prospects", token=token, method="POST", payload=payload, prefer="return=representation")
+    if not isinstance(rows, list) or not rows:
+        raise HTTPException(status_code=502, detail="Prospect could not be saved.")
+    return {key: rows[0][key] for key in (
+        "id", "name", "segment", "city", "website", "contact_name", "contact_email",
+        "contact_phone", "source_url", "evidence", "score", "stage", "notes", "created_at", "updated_at"
+    ) if key in rows[0]}
+
+
+@router.patch("/prospects/{prospect_id}")
+def update_prospect(prospect_id: UUID, body: ProspectStageUpdate, authorization: str | None = Header(default=None)):
+    token, user = _authenticated_user(authorization)
+    profile = _profile(token, user["id"])
+    if not profile:
+        raise HTTPException(status_code=409, detail="Create your workspace before managing prospects.")
+    payload = {"stage": body.stage}
+    if body.notes is not None:
+        payload["notes"] = body.notes
+    rows = _request(
+        "/rest/v1/prospects?id=eq." + str(prospect_id) + "&business_id=eq." + profile["business_id"],
+        token=token, method="PATCH", payload=payload, prefer="return=representation",
+    )
+    if not isinstance(rows, list) or not rows:
+        raise HTTPException(status_code=404, detail="Prospect was not found in this workspace.")
+    return {key: rows[0][key] for key in ("id", "name", "stage", "notes", "updated_at") if key in rows[0]}
