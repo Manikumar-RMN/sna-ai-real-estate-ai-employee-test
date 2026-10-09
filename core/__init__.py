@@ -15,6 +15,8 @@ from .supabase_knowledge import SupabaseKnowledgeProvider
 from .tool_registry import Tool, ToolRegistry
 from .integrations import FunctionIntegration, IntegrationAdapter, IntegrationDescriptor, IntegrationHealth, IntegrationRegistry
 from .integration_executor import IntegrationAction, IntegrationActionExecutor, IntegrationActionRegistry, IntegrationActionResult
+from .integration_tools import integration_tool_bundle
+from .mock_crm import MockCRM, register_mock_crm
 from .tool_bundles import ToolBundle, ToolSet
 from .standard_tools import standard_tool_bundle
 
@@ -52,6 +54,9 @@ __all__ = [
     "IntegrationActionRegistry",
     "IntegrationActionExecutor",
     "IntegrationActionResult",
+    "integration_tool_bundle",
+    "MockCRM",
+    "register_mock_crm",
     "ToolBundle",
     "ToolSet",
     "standard_tool_bundle",
