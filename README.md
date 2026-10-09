@@ -280,3 +280,19 @@ python examples/mock_crm_employee.py
 ```
 
 The example searches the sample CRM for a contact and prepares an internal summary. It does not send a message, create or update a record, contact a real person, or make a network request.
+
+
+### Local dashboard prototype
+
+Start the local-only UI:
+
+```bash
+python examples/local_dashboard.py
+```
+
+Open `http://127.0.0.1:8765`. The dashboard provides:
+- a form to score an enquiry and show missing fields;
+- an explicit follow-up-consent indicator;
+- read-only search against the seeded in-memory mock CRM.
+
+The server binds to loopback only and is intended solely for local evaluation. It has no authentication and must not be exposed to a LAN or the internet. The score is rules-based; the UI is not yet connected to a live model provider, production database, real CRM, n8n, WhatsApp, or voice service.
