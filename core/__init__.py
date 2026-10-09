@@ -2,6 +2,7 @@
 
 from .agent import Agent
 from .employee import AIEmployee, EmployeeDefinition
+from .lead_qualification import LeadProfile, LeadQualification, qualify_lead, create_lead_qualification_employee
 from .config import AgentConfig, RuntimeContext
 from .memory import ConversationMemory
 from .models import AgentResult, ModelResponse, ToolCall
@@ -27,6 +28,10 @@ __all__ = [
     "Agent",
     "AIEmployee",
     "EmployeeDefinition",
+    "LeadProfile",
+    "LeadQualification",
+    "qualify_lead",
+    "create_lead_qualification_employee",
     "AgentConfig",
     "RuntimeContext",
     "ConversationMemory",
