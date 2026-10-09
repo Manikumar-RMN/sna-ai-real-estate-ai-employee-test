@@ -69,7 +69,6 @@ class UrllibHttpTransport:
         try:
             response = opener.open(request, timeout=timeout_seconds)
         except HTTPError as exc:
-            # Never return the response body; it can contain vendor diagnostics or secrets.
             raise IntegrationRequestError(f"Integration returned HTTP {exc.code}.") from None
         except (URLError, TimeoutError, OSError):
             raise IntegrationRequestError("Integration request failed or timed out.") from None
@@ -124,7 +123,8 @@ class TenantScopedHttpJsonClient:
         self.max_response_bytes = max_response_bytes
 
     @staticmethod
-    def _validate_relative_path(path: str) -> str:
+    def validate_relative_path(path: str) -> str:
+        """Validate a configured relative path without allowing origin/path escape."""
         if not isinstance(path, str) or not path.strip():
             raise ValueError("request path must be a non-empty relative path")
         parsed = urlsplit(path)
@@ -134,6 +134,11 @@ class TenantScopedHttpJsonClient:
         if any(segment in {".", ".."} for segment in decoded_segments):
             raise ValueError("request path must not contain dot segments")
         return parsed.path
+
+    @staticmethod
+    def _validate_relative_path(path: str) -> str:
+        """Backward-compatible private alias; use validate_relative_path in new code."""
+        return TenantScopedHttpJsonClient.validate_relative_path(path)
 
     def request(
         self,
@@ -149,7 +154,7 @@ class TenantScopedHttpJsonClient:
         method = method.upper() if isinstance(method, str) else ""
         if method not in {"GET", "POST", "PUT", "PATCH", "DELETE"}:
             raise ValueError("unsupported HTTP method")
-        relative_path = self._validate_relative_path(path)
+        relative_path = self.validate_relative_path(path)
         secret = self.secret_provider.get_secret(
             tenant_id=tenant_id,
             integration_name=self.integration_name,
