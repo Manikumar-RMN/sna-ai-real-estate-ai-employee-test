@@ -102,3 +102,45 @@ print(registry.list_integrations(capability="contacts.read"))
 ```
 
 Concrete CRM, messaging, email, and calendar connectors can implement this contract in separate modules. Keep credentials in server-side configuration and require explicit authorization for write or sensitive operations. A registered adapter's default health check only confirms local registration, not external connectivity.
+
+
+## V1.9 — Permission-Checked Integration Actions
+
+V1.9 adds a separate action execution boundary on top of the V1.8 integration registry:
+
+- `IntegrationAction` explicitly allow-lists each operation, JSON Schema, and permission.
+- `IntegrationActionRegistry` only attaches actions to integrations already registered.
+- `IntegrationActionExecutor` validates arguments before invoking handlers and defaults to read-only permissions.
+- Write actions require an explicit permission grant. Sensitive actions require both a grant and `confirm_sensitive=True`.
+- Missing actions, denied permissions, and invalid arguments fail closed. Handler exception text is not returned to the caller, helping prevent accidental credential leakage.
+- This is a local execution boundary, not a credentials vault, tenant authorization system, or live external connector. Production applications must enforce authenticated user/tenant scope and resolve secrets server-side.
+
+Example:
+
+```python
+from core.integration_executor import (
+    IntegrationAction, IntegrationActionExecutor, IntegrationActionRegistry,
+)
+from core.integrations import FunctionIntegration, IntegrationDescriptor, IntegrationRegistry
+
+integrations = IntegrationRegistry()
+integrations.register(FunctionIntegration(IntegrationDescriptor(name="crm")))
+actions = IntegrationActionRegistry(integrations)
+actions.register("crm", IntegrationAction(
+    name="lookup_contact",
+    description="Look up one contact",
+    schema={
+        "type": "object",
+        "properties": {"contact_id": {"type": "string"}},
+        "required": ["contact_id"],
+        "additionalProperties": False,
+    },
+    handler=lambda contact_id: {"contact_id": contact_id},
+    permission="read",
+))
+executor = IntegrationActionExecutor(integrations, actions)
+result = executor.execute("crm", "lookup_contact", {"contact_id": "demo-123"})
+print(result.ok, result.output)
+```
+
+No real CRM, WhatsApp, email, or calendar service is connected by these tests; the examples use local handlers only.
