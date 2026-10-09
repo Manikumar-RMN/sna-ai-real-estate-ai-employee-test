@@ -15,9 +15,11 @@ from pydantic import BaseModel, Field, StrictBool
 
 from core.lead_qualification import LeadProfile, qualify_lead
 from core.mock_crm import MockCRM
+from api.workspace import router as workspace_router
 
 app = FastAPI(title="SNA AI Agent Studio Demo API", version="0.2.0")
 crm = MockCRM()
+app.include_router(workspace_router)
 
 
 class QualificationRequest(BaseModel):
