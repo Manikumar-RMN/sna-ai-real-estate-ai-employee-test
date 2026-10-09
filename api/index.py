@@ -114,3 +114,49 @@ def search_crm(request: CRMSearchRequest):
         return crm.search_contacts(request.query.strip())
     except Exception:
         raise HTTPException(status_code=400, detail="Unable to search demo contacts.")
+
+
+def _supabase_read_table(table: str):
+    """Read a small, safe projection of tenant-neutral setup records."""
+    project_url = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
+    publishable_key = os.environ.get("SUPABASE_ANON_KEY", "").strip()
+    parsed = urlparse(project_url)
+    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or not publishable_key:
+        raise HTTPException(status_code=503, detail="Supabase is not configured safely.")
+
+    request = Request(
+        f"{project_url}/rest/v1/{table}?select=*&limit=50",
+        headers={"apikey": publishable_key, "Accept": "application/json"},
+        method="GET",
+    )
+    try:
+        with urlopen(request, timeout=5) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        if exc.code in (401, 403):
+            raise HTTPException(status_code=502, detail="Supabase denied table access.")
+        raise HTTPException(status_code=502, detail="Supabase table query failed.")
+    except (URLError, TimeoutError, OSError, ValueError):
+        raise HTTPException(status_code=502, detail="Supabase table query failed.")
+
+    if not isinstance(payload, list):
+        raise HTTPException(status_code=502, detail="Supabase returned an unexpected response.")
+    # Never forward arbitrary columns (which may include private configuration).
+    allowed = {"id", "name", "business_name", "agent_name", "status", "created_at", "updated_at"}
+    rows = []
+    for item in payload:
+        if isinstance(item, dict):
+            rows.append({key: item[key] for key in allowed if key in item})
+    return {"count": len(rows), "items": rows, "mode": "supabase_read_only"}
+
+
+@app.get("/api/data/businesses")
+def list_businesses():
+    """Return up to 50 businesses, exposing only a small field allowlist."""
+    return _supabase_read_table("businesses")
+
+
+@app.get("/api/data/agents")
+def list_agents():
+    """Return up to 50 agents, exposing only a small field allowlist."""
+    return _supabase_read_table("agents")
