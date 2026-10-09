@@ -138,6 +138,7 @@ def get_workspace(authorization: str | None = Header(default=None)):
 
 @router.post("/workspace")
 def create_workspace(body: WorkspaceCreate, authorization: str | None = Header(default=None)):
+    """Create business + owner profile. Compensates if profile insert fails."""
     token, user = _authenticated_user(authorization)
     if _profile(token, user["id"]):
         raise HTTPException(status_code=409, detail="A workspace is already linked to this account.")
@@ -148,7 +149,10 @@ def create_workspace(body: WorkspaceCreate, authorization: str | None = Header(d
         prefer="return=representation",
     )
     if not isinstance(rows, list) or not rows:
-        raise HTTPException(status_code=502, detail="Workspace could not be created.")
+        raise HTTPException(
+            status_code=502,
+            detail="Workspace could not be created. Run docs/supabase_phase1_setup.sql in Supabase (RLS policies required).",
+        )
     business = rows[0]
     try:
         _request(
@@ -160,8 +164,21 @@ def create_workspace(body: WorkspaceCreate, authorization: str | None = Header(d
             },
             prefer="return=representation",
         )
-    except HTTPException:
-        raise HTTPException(status_code=502, detail="Workspace was created but owner setup did not finish. Contact support before retrying.")
+    except HTTPException as exc:
+        try:
+            _request(
+                "/rest/v1/businesses?id=eq." + str(business["id"]),
+                token=token, method="DELETE",
+            )
+        except Exception:
+            pass
+        detail = getattr(exc, "detail", None) or "Owner profile could not be created."
+        if isinstance(detail, str) and "row-level security" in detail.lower():
+            detail = (
+                "Database blocked the insert (RLS). Open Supabase SQL Editor and run "
+                "docs/supabase_phase1_setup.sql, then retry."
+            )
+        raise HTTPException(status_code=502, detail=detail)
     return {"business": business, "status": "created"}
 
 
@@ -184,6 +201,47 @@ def create_agent(body: AgentCreate, authorization: str | None = Header(default=N
     if not isinstance(rows, list) or not rows:
         raise HTTPException(status_code=502, detail="AI employee could not be saved.")
     return {key: rows[0][key] for key in ("id", "business_id", "name", "description", "status", "created_at", "updated_at") if key in rows[0]}
+
+
+class AgentDemoRun(BaseModel):
+    agent_id: UUID
+    task: str = Field(min_length=2, max_length=4000)
+
+
+@router.post("/agents/demo-run")
+def demo_run_agent(body: AgentDemoRun, authorization: str | None = Header(default=None)):
+    """Safe offline run: returns agent instructions + task framing without calling external AI."""
+    token, user = _authenticated_user(authorization)
+    profile = _profile(token, user["id"])
+    if not profile:
+        raise HTTPException(status_code=409, detail="Create your workspace before running an AI employee.")
+    rows = _request(
+        "/rest/v1/agents?select=id,name,system_prompt,status,description&business_id=eq."
+        + str(profile["business_id"]) + "&id=eq." + str(body.agent_id) + "&limit=1",
+        token=token,
+    )
+    if not isinstance(rows, list) or not rows:
+        raise HTTPException(status_code=404, detail="AI employee was not found in this workspace.")
+    agent = rows[0]
+    if agent.get("status") != "active":
+        raise HTTPException(status_code=409, detail="Activate this AI employee before running tasks.")
+    prompt = str(agent.get("system_prompt") or "").strip()
+    summary = (
+        "DEMO MODE (no external AI call).\n"
+        "Employee: " + str(agent.get("name") or "") + "\n"
+        "Status: " + str(agent.get("status") or "") + "\n\n"
+        "Configured instructions:\n" + (prompt[:1500] or "(none)") + "\n\n"
+        "Your task:\n" + body.task.strip() + "\n\n"
+        "To get a real model response: set GEMINI_API_KEY and GEMINI_EXECUTION_ENABLED=true "
+        "in Vercel environment variables, redeploy, then Run again."
+    )
+    return {
+        "message": "Demo run completed without calling an external model.",
+        "result": summary,
+        "provider": "demo",
+        "agent_id": str(agent.get("id")),
+        "agent_name": agent.get("name"),
+    }
 
 
 @router.patch("/agents/{agent_id}")
