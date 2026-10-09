@@ -84,3 +84,43 @@ def test_supabase_health_rejects_non_https_url(monkeypatch):
     with pytest.raises(HTTPException) as exc:
         index.supabase_health()
     assert exc.value.status_code == 503
+
+
+
+def test_businesses_endpoint_reads_from_supabase_and_filters_fields(monkeypatch):
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_ANON_KEY", "sb_publishable_test")
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self):
+            return b'[{"id":"b1","name":"Demo Business","secret_config":"never expose"}]'
+
+    def fake_urlopen(request, timeout):
+        assert request.full_url == "https://example.supabase.co/rest/v1/businesses?select=*&limit=50"
+        assert timeout == 5
+        return FakeResponse()
+
+    monkeypatch.setattr(index, "urlopen", fake_urlopen)
+    result = index.list_businesses()
+    assert result == {"count": 1, "items": [{"id": "b1", "name": "Demo Business"}], "mode": "supabase_read_only"}
+
+
+def test_agents_endpoint_returns_safe_read_only_shape(monkeypatch):
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_ANON_KEY", "sb_publishable_test")
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self):
+            return b'[{"id":"a1","agent_name":"Lead Assistant","status":"draft","private_prompt":"hidden"}]'
+
+    monkeypatch.setattr(index, "urlopen", lambda request, timeout: FakeResponse())
+    result = index.list_agents()
+    assert result == {"count": 1, "items": [{"id": "a1", "agent_name": "Lead Assistant", "status": "draft"}], "mode": "supabase_read_only"}
