@@ -95,7 +95,7 @@ class IntegrationActionExecutor:
     ) -> None:
         self.integrations = integrations
         self.actions = actions
-        self.allowed_permissions = set(allowed_permissions or {"read"})
+        self.allowed_permissions = set({"read"} if allowed_permissions is None else allowed_permissions)
         invalid = self.allowed_permissions.difference(PERMISSIONS)
         if invalid:
             raise ValueError(f"invalid allowed permissions: {', '.join(sorted(invalid))}")
