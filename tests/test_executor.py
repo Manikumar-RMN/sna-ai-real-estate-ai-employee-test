@@ -81,3 +81,9 @@ def test_retryable_tool_retries_after_failure():
     )
     assert result == "ok"
     assert attempts["count"] == 2
+
+
+
+def test_empty_permission_set_denies_read_tools():
+    result = ToolExecutor(allowed_permissions=set()).execute(make_tool(), "{}")
+    assert "Permission denied" in result["error"]
