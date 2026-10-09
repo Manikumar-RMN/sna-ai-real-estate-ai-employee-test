@@ -27,8 +27,7 @@ class N8nWebhookAdapter:
     ) -> None:
         if not isinstance(tenant_id, str) or not tenant_id.strip():
             raise ValueError("tenant_id must come from authenticated application context")
-        # Reuse the client's path checks before accepting the configured path.
-        client._validate_relative_path(webhook_path)
+        TenantScopedHttpJsonClient.validate_relative_path(webhook_path)
         self.client = client
         self.tenant_id = tenant_id
         self.webhook_path = webhook_path
@@ -45,7 +44,6 @@ class N8nWebhookAdapter:
         return self._descriptor
 
     def health_check(self) -> IntegrationHealth:
-        # Avoid unexpectedly triggering a workflow just to check health.
         return IntegrationHealth(
             ok=True,
             message="Webhook adapter configured locally; no live connectivity check was performed.",
