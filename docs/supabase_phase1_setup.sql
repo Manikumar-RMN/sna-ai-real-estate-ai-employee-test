@@ -115,7 +115,15 @@ WITH CHECK (
 CREATE POLICY "authenticated_select_users" ON public.users FOR SELECT TO authenticated
 USING (auth.uid() = auth_user_id);
 CREATE POLICY "authenticated_update_users" ON public.users FOR UPDATE TO authenticated
-USING (auth.uid() = auth_user_id) WITH CHECK (auth.uid() = auth_user_id);
+USING (auth.uid() = auth_user_id)
+WITH CHECK (
+  auth.uid() = auth_user_id
+  AND EXISTS (
+    SELECT 1 FROM public.businesses b
+    WHERE b.id = business_id
+      AND b.owner_auth_user_id = auth.uid()
+  )
+);
 
 CREATE POLICY "authenticated_all_agents" ON public.agents FOR ALL TO authenticated
 USING (business_id IN (SELECT business_id FROM public.users WHERE auth_user_id = auth.uid()))
