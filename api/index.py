@@ -10,12 +10,12 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field, StrictBool
 
 from core.lead_qualification import LeadProfile, qualify_lead
 from core.mock_crm import MockCRM
-from api.workspace import router as workspace_router
+from api.workspace import router as workspace_router, _authenticated_user, _profile, _request
 from api.integrations import router as integrations_router
 
 app = FastAPI(title="SNA AI Agent Studio Demo API", version="0.2.0")
@@ -120,47 +120,32 @@ def search_crm(request: CRMSearchRequest):
         raise HTTPException(status_code=400, detail="Unable to search demo contacts.")
 
 
-def _supabase_read_table(table: str):
-    """Read a small, safe projection of tenant-neutral setup records."""
-    project_url = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
-    publishable_key = os.environ.get("SUPABASE_ANON_KEY", "").strip()
-    parsed = urlparse(project_url)
-    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or not publishable_key:
-        raise HTTPException(status_code=503, detail="Supabase is not configured safely.")
-
-    request = Request(
-        f"{project_url}/rest/v1/{table}?select=*&limit=50",
-        headers={"apikey": publishable_key, "Accept": "application/json"},
-        method="GET",
-    )
-    try:
-        with urlopen(request, timeout=5) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except HTTPError as exc:
-        if exc.code in (401, 403):
-            raise HTTPException(status_code=502, detail="Supabase denied table access.")
-        raise HTTPException(status_code=502, detail="Supabase table query failed.")
-    except (URLError, TimeoutError, OSError, ValueError):
-        raise HTTPException(status_code=502, detail="Supabase table query failed.")
-
-    if not isinstance(payload, list):
+def _supabase_read_table(table: str, authorization: str | None):
+    """Read only the authenticated user's workspace records."""
+    if table not in {"businesses", "agents"}:
+        raise HTTPException(status_code=404, detail="Data source not found.")
+    token, user = _authenticated_user(authorization)
+    profile = _profile(token, user["id"])
+    if not profile:
+        raise HTTPException(status_code=409, detail="Create your workspace before viewing data.")
+    business_id = str(profile["business_id"])
+    if table == "businesses":
+        path = "/rest/v1/businesses?select=id,name,status,created_at&id=eq." + business_id + "&limit=1"
+    else:
+        path = "/rest/v1/agents?select=id,name,description,status,created_at,updated_at&business_id=eq." + business_id + "&order=created_at.desc&limit=50"
+    rows = _request(path, token=token)
+    if not isinstance(rows, list):
         raise HTTPException(status_code=502, detail="Supabase returned an unexpected response.")
-    # Never forward arbitrary columns (which may include private configuration).
-    allowed = {"id", "name", "business_name", "agent_name", "status", "created_at", "updated_at"}
-    rows = []
-    for item in payload:
-        if isinstance(item, dict):
-            rows.append({key: item[key] for key in allowed if key in item})
-    return {"count": len(rows), "items": rows, "mode": "supabase_read_only"}
+    return {"count": len(rows), "items": rows, "mode": "authenticated_workspace_read_only"}
 
 
 @app.get("/api/data/businesses")
-def list_businesses():
-    """Return up to 50 businesses, exposing only a small field allowlist."""
-    return _supabase_read_table("businesses")
+def list_businesses(authorization: str | None = Header(default=None)):
+    """Return only the authenticated user's workspace."""
+    return _supabase_read_table("businesses", authorization)
 
 
 @app.get("/api/data/agents")
-def list_agents():
-    """Return up to 50 agents, exposing only a small field allowlist."""
-    return _supabase_read_table("agents")
+def list_agents(authorization: str | None = Header(default=None)):
+    """Return only agents belonging to the authenticated user's workspace."""
+    return _supabase_read_table("agents", authorization)
